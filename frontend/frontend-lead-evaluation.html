@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Frontend Lead Engineer Evaluation Pack</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --border: #1f2937;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg) 45%);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem;
+    }
+
+    h1, h2, h3 { margin: 0 0 0.75rem; }
+
+    .wrapper {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .card {
+      background: linear-gradient(180deg, #111827, #0b1220);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--accent);
+      margin-right: 0.35rem;
+      margin-bottom: 0.25rem;
+      font-size: 0.85rem;
+    }
+
+    .demo-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin: 0.75rem 0;
+    }
+
+    button {
+      border: 1px solid #334155;
+      background: #0ea5e9;
+      color: #06263a;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 0.55rem 0.9rem;
+    }
+
+    button:hover { filter: brightness(1.07); }
+
+    .result {
+      margin-top: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0b1324;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      min-height: 2.4rem;
+      white-space: pre-wrap;
+    }
+
+    details {
+      border-top: 1px dashed #334155;
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--warn);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.88rem;
+    }
+
+    pre {
+      margin: 0;
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: 1px solid #223047;
+      background: #020617;
+      overflow-x: auto;
+    }
+
+    #jquery-list li {
+      margin: 0.3rem 0;
+      color: #cbd5e1;
+    }
+
+    .ok { color: var(--ok); font-weight: 600; }
+    .warn { color: var(--warn); font-weight: 600; }
+    .footer { color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <section class="card">
+      <h1>Frontend Lead Engineer Evaluation Pack</h1>
+      <p class="meta">
+        Single-file assessment kit with problems + reference solutions for
+        <strong>JavaScript</strong>, <strong>jQuery</strong>, and <strong>React</strong>.
+        Open this file directly in any modern browser.
+      </p>
+      <span class="pill">Practical</span>
+      <span class="pill">Lead-level review points</span>
+      <span class="pill">Demo-ready in browser</span>
+    </section>
+
+    <section class="card" id="js-section">
+      <h2>1) JavaScript Problem (Async + Data Shaping)</h2>
+      <p><strong>Problem:</strong> Build a <code>buildLeaderboard(users, scores)</code> function that joins users and score events, keeps each user's latest score, then returns top 3 users sorted by score descending and name ascending for ties.</p>
+      <p><strong>What to evaluate:</strong> correctness, Big-O awareness, clean composition, edge-case handling (missing users, duplicate score events).</p>
+      <div class="demo-row">
+        <button id="run-js">Run JavaScript Demo</button>
+      </div>
+      <div class="result" id="js-result">Click “Run JavaScript Demo”.</div>
+
+      <details>
+        <summary>Show reference solution</summary>
+        <pre><code>function buildLeaderboard(users, scores) {
+  const userMap = new Map(users.map((u) => [u.id, u.name]));
+  const latestScoreByUser = new Map();
+
+  for (const event of scores) {
+    const prev = latestScoreByUser.get(event.userId);
+    if (!prev || event.ts > prev.ts) {
+      latestScoreByUser.set(event.userId, { score: event.score, ts: event.ts });
+    }
+  }
+
+  return [...latestScoreByUser.entries()]
+    .filter(([userId]) => userMap.has(userId))
+    .map(([userId, { score }]) => ({
+      userId,
+      name: userMap.get(userId),
+      score
+    }))
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .slice(0, 3);
+}</code></pre>
+      </details>
+    </section>
+
+    <section class="card" id="jquery-section">
+      <h2>2) jQuery Problem (DOM Events + State Sync)</h2>
+      <p><strong>Problem:</strong> Create a dynamic checklist where users can add items, mark complete, and show a live completion ratio. Use event delegation so new elements work automatically.</p>
+      <p><strong>What to evaluate:</strong> event delegation, avoiding duplicated handlers, DOM update efficiency, separation of state and rendering logic.</p>
+      <div class="demo-row">
+        <input id="jq-input" placeholder="Add task" style="padding:0.55rem;border-radius:8px;border:1px solid #334155;background:#020617;color:#e2e8f0;" />
+        <button id="jq-add">Add Task</button>
+        <button id="jq-reset">Reset</button>
+      </div>
+      <ul id="jquery-list"></ul>
+      <div class="result" id="jq-result">Completion: 0 / 0</div>
+
+      <details>
+        <summary>Show reference solution</summary>
+        <pre><code>// jQuery approach with delegated event handling
+const tasks = [];
+
+function renderStatus() {
+  const done = tasks.filter((t) => t.done).length;
+  $('#jq-result').text(`Completion: ${done} / ${tasks.length}`);
+}
+
+$('#jq-add').on('click', function () {
+  const value = $('#jq-input').val().trim();
+  if (!value) return;
+
+  const task = { id: Date.now() + Math.random(), text: value, done: false };
+  tasks.push(task);
+
+  $('#jquery-list').append(`
+    &lt;li data-id="${task.id}"&gt;
+      &lt;label&gt;
+        &lt;input type="checkbox" class="task-check" /&gt; ${task.text}
+      &lt;/label&gt;
+    &lt;/li&gt;
+  `);
+
+  $('#jq-input').val('');
+  renderStatus();
+});
+
+$('#jquery-list').on('change', '.task-check', function () {
+  const id = Number($(this).closest('li').data('id'));
+  const task = tasks.find((t) => t.id === id);
+  if (task) task.done = this.checked;
+  renderStatus();
+});</code></pre>
+      </details>
+    </section>
+
+    <section class="card" id="react-section">
+      <h2>3) React Problem (State, Memoization, Derived Data)</h2>
+      <p><strong>Problem:</strong> Build a searchable product table with category filters and an “in stock only” toggle. Avoid unnecessary recomputation for large lists.</p>
+      <p><strong>What to evaluate:</strong> component decomposition, controlled inputs, <code>useMemo</code> for derived data, readability, and testability.</p>
+      <div id="react-root" class="result" style="font-family:inherit; min-height: 180px;">Loading React demo...</div>
+
+      <details>
+        <summary>Show reference solution (core idea)</summary>
+        <pre><code>function ProductBoard({ products }) {
+  const [query, setQuery] = React.useState('');
+  const [category, setCategory] = React.useState('All');
+  const [inStockOnly, setInStockOnly] = React.useState(false);
+
+  const categories = React.useMemo(
+    () => ['All', ...new Set(products.map((p) => p.category))],
+    [products]
+  );
+
+  const filtered = React.useMemo(() => {
+    return products.filter((p) => {
+      const matchesQuery = p.name.toLowerCase().includes(query.toLowerCase());
+      const matchesCategory = category === 'All' || p.category === category;
+      const matchesStock = !inStockOnly || p.stock > 0;
+      return matchesQuery && matchesCategory && matchesStock;
+    });
+  }, [products, query, category, inStockOnly]);
+
+  return (...);
+}</code></pre>
+      </details>
+    </section>
+
+    <section class="card footer">
+      <p class="ok">Suggested lead-level interview flow:</p>
+      <ol>
+        <li>Give candidate 10 minutes to clarify requirements and discuss trade-offs.</li>
+        <li>Let them implement one problem live, one as pseudo-code, one as architecture discussion.</li>
+        <li>Ask follow-ups: test strategy, performance bottlenecks, and maintainability decisions.</li>
+      </ol>
+      <p class="warn">Note: The React and jQuery demos use CDN scripts. If offline, the JavaScript section still works and solution code remains visible.</p>
+    </section>
+  </div>
+
+  <script>
+    // JavaScript reference demo
+    function buildLeaderboard(users, scores) {
+      const userMap = new Map(users.map((u) => [u.id, u.name]));
+      const latestScoreByUser = new Map();
+
+      for (const event of scores) {
+        const prev = latestScoreByUser.get(event.userId);
+        if (!prev || event.ts > prev.ts) {
+          latestScoreByUser.set(event.userId, { score: event.score, ts: event.ts });
+        }
+      }
+
+      return [...latestScoreByUser.entries()]
+        .filter(([userId]) => userMap.has(userId))
+        .map(([userId, { score }]) => ({ userId, name: userMap.get(userId), score }))
+        .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+        .slice(0, 3);
+    }
+
+    document.getElementById('run-js').addEventListener('click', () => {
+      const users = [
+        { id: 1, name: 'Ava' },
+        { id: 2, name: 'Noah' },
+        { id: 3, name: 'Mia' },
+        { id: 4, name: 'Liam' }
+      ];
+
+      const scores = [
+        { userId: 1, score: 60, ts: 1000 },
+        { userId: 2, score: 90, ts: 1001 },
+        { userId: 1, score: 95, ts: 1002 },
+        { userId: 3, score: 90, ts: 1003 },
+        { userId: 4, score: 70, ts: 1004 },
+        { userId: 2, score: 80, ts: 999 }
+      ];
+
+      const top3 = buildLeaderboard(users, scores);
+      document.getElementById('js-result').textContent = JSON.stringify(top3, null, 2);
+    });
+  </script>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script>
+    // jQuery reference demo
+    (function () {
+      if (!window.jQuery) {
+        $('#jq-result').text('jQuery CDN not available (offline mode).');
+        return;
+      }
+
+      const tasks = [];
+
+      function renderStatus() {
+        const done = tasks.filter((t) => t.done).length;
+        $('#jq-result').text(`Completion: ${done} / ${tasks.length}`);
+      }
+
+      $('#jq-add').on('click', function () {
+        const value = $('#jq-input').val().trim();
+        if (!value) return;
+
+        const task = { id: Date.now() + Math.random(), text: value, done: false };
+        tasks.push(task);
+
+        $('#jquery-list').append(`
+          <li data-id="${task.id}">
+            <label>
+              <input type="checkbox" class="task-check" /> ${task.text}
+            </label>
+          </li>
+        `);
+
+        $('#jq-input').val('');
+        renderStatus();
+      });
+
+      $('#jq-reset').on('click', function () {
+        tasks.length = 0;
+        $('#jquery-list').empty();
+        renderStatus();
+      });
+
+      $('#jquery-list').on('change', '.task-check', function () {
+        const id = Number($(this).closest('li').data('id'));
+        const task = tasks.find((t) => t.id === id);
+        if (task) task.done = this.checked;
+        renderStatus();
+      });
+    })();
+  </script>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script>
+    (function () {
+      if (!window.React || !window.ReactDOM) {
+        document.getElementById('react-root').textContent = 'React CDN not available (offline mode).';
+        return;
+      }
+
+      const e = React.createElement;
+
+      function ProductBoard({ products }) {
+        const [query, setQuery] = React.useState('');
+        const [category, setCategory] = React.useState('All');
+        const [inStockOnly, setInStockOnly] = React.useState(false);
+
+        const categories = React.useMemo(
+          () => ['All', ...new Set(products.map((p) => p.category))],
+          [products]
+        );
+
+        const filtered = React.useMemo(() => {
+          return products.filter((p) => {
+            const matchesQuery = p.name.toLowerCase().includes(query.toLowerCase());
+            const matchesCategory = category === 'All' || p.category === category;
+            const matchesStock = !inStockOnly || p.stock > 0;
+            return matchesQuery && matchesCategory && matchesStock;
+          });
+        }, [products, query, category, inStockOnly]);
+
+        return e('div', null,
+          e('div', { style: { display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' } },
+            e('input', {
+              value: query,
+              onChange: (evt) => setQuery(evt.target.value),
+              placeholder: 'Search product...',
+              style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid #334155', background: '#020617', color: '#e5e7eb' }
+            }),
+            e('select', {
+              value: category,
+              onChange: (evt) => setCategory(evt.target.value),
+              style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid #334155', background: '#020617', color: '#e5e7eb' }
+            }, categories.map((c) => e('option', { key: c, value: c }, c))),
+            e('label', { style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } },
+              e('input', {
+                type: 'checkbox',
+                checked: inStockOnly,
+                onChange: (evt) => setInStockOnly(evt.target.checked)
+              }),
+              'In stock only'
+            )
+          ),
+          e('div', { style: { fontWeight: 700, marginBottom: '6px' } }, `Results: ${filtered.length}`),
+          e('ul', { style: { margin: 0, paddingLeft: '18px' } },
+            filtered.map((p) => e('li', { key: p.id }, `${p.name} (${p.category}) - stock: ${p.stock}`))
+          )
+        );
+      }
+
+      const sampleProducts = [
+        { id: 1, name: 'Mechanical Keyboard', category: 'Hardware', stock: 8 },
+        { id: 2, name: 'Gaming Mouse', category: 'Hardware', stock: 0 },
+        { id: 3, name: 'Design Tokens Guide', category: 'Books', stock: 13 },
+        { id: 4, name: 'React Performance Course', category: 'Courses', stock: 5 },
+        { id: 5, name: 'CSS Architecture Notes', category: 'Books', stock: 0 }
+      ];
+
+      ReactDOM.createRoot(document.getElementById('react-root')).render(
+        e(ProductBoard, { products: sampleProducts })
+      );
+    })();
+  </script>
+</body>
+</html>
