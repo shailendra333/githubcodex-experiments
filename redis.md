@@ -239,7 +239,222 @@ If multiple needs overlap, combine structures (e.g., hash for object + zset for 
 - Using HyperLogLog where exact counts are contractually required.
 - Ignoring TTL/retention, causing unbounded memory growth.
 
-## 6) Example Architecture Patterns
+---
+
+## 6) Lead-Level Redis Solution Design (Comprehensive Problem)
+
+### Problem Statement
+
+Design a **real-time hyperlocal commerce and delivery platform** (think groceries + quick commerce) that must support:
+
+- User sessions, carts, and product metadata
+- Inventory reservation with contention control
+- Order placement and lifecycle events
+- Driver discovery by proximity
+- Dynamic ETA and surge ranking
+- Notification fanout
+- Fraud/rate-limit protection
+- Real-time analytics (approx + exact where needed)
+
+The system has to operate at very high QPS with sub-20ms read latency for hot paths and predictable behavior during traffic spikes.
+
+### Functional and Non-Functional Requirements
+
+**Functional**
+- Browse products and prices by store
+- Maintain cart state with expiration
+- Reserve inventory atomically on checkout
+- Dispatch nearest eligible driver
+- Track order status updates in real time
+- Provide user and merchant dashboards (orders, rankings, active users)
+
+**Non-functional**
+- P99 reads < 20ms for hot keys
+- Graceful degradation under 10x burst traffic
+- Durable order/event history for replay and reconciliation
+- Multi-AZ/high availability and fast failover
+- Strong observability and operational guardrails
+
+---
+
+### Data Modeling: Redis Features Mapped to Use Cases
+
+#### 1) Strings
+- `session:{token}` → serialized auth/session payload with TTL
+- `config:surge_multiplier:{zone}` → dynamic config values
+- `rate_limit:{user_id}:{minute}` → counter using `INCR` + `EXPIRE`
+
+Why: fastest primitive for ephemeral state, counters, and configuration snapshots.
+
+#### 2) Hashes
+- `user:{id}` → profile fields
+- `store:{id}:product:{sku}` → price, stock, attributes
+- `order:{id}` → mutable order state machine fields
+
+Why: partial field updates avoid rewriting full blobs; good for operational entities.
+
+#### 3) Lists
+- `deadletter:dispatch` → failed dispatch attempts for operator triage
+- `recent_events:{order_id}` → last N events per order (`LPUSH` + `LTRIM`)
+
+Why: simple append/pop buffers where strict replay semantics are not required.
+
+#### 4) Sets
+- `store:{id}:active_couriers` → currently available drivers
+- `coupon:{id}:redeemed_users` → dedupe coupon redemption
+- `fraud:blocked_devices` → O(1) membership checks
+
+Why: uniqueness + fast membership and set algebra for eligibility filtering.
+
+#### 5) Sorted Sets (ZSET)
+- `leaderboard:stores:sales:{day}` score = revenue
+- `dispatch_candidates:{zone}` score = composite priority (distance, load, rating)
+- `orders_by_time:{store_id}` score = epoch millis
+
+Why: ranking, top-N, and time window queries with one structure.
+
+#### 6) Streams
+- `stream:orders` for order lifecycle events
+- `stream:inventory` for stock updates
+- Consumer groups:
+  - `cg:fulfillment`
+  - `cg:notifications`
+  - `cg:analytics`
+
+Why: durable event log with replay, pending tracking, and independent consumer scaling.
+
+#### 7) Bitmaps
+- `bitmap:dau:{yyyyMMdd}` bit offset by numeric user ID
+- `bitmap:feature:{flag}:{yyyyMMdd}` rollout exposure tracking
+
+Why: highly memory-efficient daily active/feature participation analytics.
+
+#### 8) HyperLogLog
+- `hll:unique_visitors:{store_id}:{yyyyMMdd}`
+- `hll:search_unique_queries:{yyyyMMdd}`
+
+Why: low-cost approximate cardinality at high scale.
+
+#### 9) GEO
+- `geo:couriers:{city}` with courier coordinates
+- Query via radius around merchant/customer location
+
+Why: native nearby lookup for dispatch without external GIS for simple proximity.
+
+#### 10) Pub/Sub
+- Channels: `chan:order_updates:{order_id}`, `chan:ops_alerts`
+
+Why: low-latency fanout for transient real-time UI updates (not source of truth).
+
+---
+
+### End-to-End Flow (Checkout to Delivery)
+
+1. **Cart read/write**
+   - Cart entries in `hash cart:{user_id}` with TTL refresh.
+2. **Checkout validation**
+   - Inventory + coupon + risk checks in a Lua script for atomic multi-key rules.
+3. **Order creation**
+   - Persist `order:{id}` hash + append `XADD stream:orders`.
+4. **Inventory reservation**
+   - Atomic decrement using Lua; failure triggers compensating event.
+5. **Dispatch**
+   - GEO radius lookup of drivers, intersect with availability set, rank in ZSET.
+6. **Notification**
+   - Publish transient update via Pub/Sub; durable status also sent on Stream.
+7. **Analytics**
+   - Increment strings, set bits in bitmap, update HLL and daily leaderboards.
+
+---
+
+### Atomicity, Consistency, and Concurrency Strategy
+
+- Use **Lua scripts** for multi-step invariants:
+  - stock decrement only if `stock >= requested`
+  - one-time coupon redemption check + write
+  - idempotent order transition enforcement
+- Use **WATCH/MULTI/EXEC** only when optimistic concurrency is sufficient and key contention is moderate.
+- Design **idempotency keys**:
+  - `idempotency:checkout:{request_id}` with TTL, set via `SET NX EX`.
+- Guarantee state transition correctness:
+  - finite-state-machine rules inside script (`CREATED -> ASSIGNED -> PICKED -> DELIVERED`).
+
+---
+
+### Partitioning, Scalability, and High Availability
+
+- Deploy **Redis Cluster** with hash-tagging for co-location where needed:
+  - Example: `{order:123}:state`, `{order:123}:events`
+- Split workloads by role:
+  - hot cache cluster
+  - stream/event cluster
+  - analytics cluster
+- Use replicas for read scaling where read-after-write strictness is not required.
+- Configure Sentinel/managed failover (or cloud managed Redis) for automated recovery.
+- Implement client-side circuit breaking and fallback for partial outages.
+
+---
+
+### Persistence and Recovery
+
+- Use **AOF everysec** for event-centric keys (orders/streams).
+- Use periodic **RDB snapshots** for faster restart + backup checkpoints.
+- Define clear data classes:
+  - critical durable: orders, payments linkage, inventory reservations
+  - reconstructable: rankings, caches, ephemeral sessions
+- Build stream replay jobs to rebuild derived views (leaderboards, aggregates).
+
+---
+
+### Observability and SRE Guardrails
+
+- Track:
+  - latency (P50/P95/P99) by command group
+  - keyspace hit ratio, eviction counts, fragmentation ratio
+  - stream lag and pending message depth per consumer group
+  - hot-key detection and top memory keys
+- Enforce:
+  - TTL standards for ephemeral data
+  - maxmemory policies (`allkeys-lru`/`volatile-ttl` by workload)
+  - key naming/versioning conventions
+- Runbooks:
+  - backlog drain procedure
+  - dead-letter reprocessing
+  - traffic shedding mode (disable non-critical writes/analytics)
+
+---
+
+### Security and Governance
+
+- Enable ACLs by service role (read-only analytics, write-capable fulfillment).
+- Enforce TLS in transit and encryption at rest (managed offering preferred).
+- Avoid sensitive PII in Redis; keep tokenized references where possible.
+- Apply strict TTL for session/security artifacts.
+
+---
+
+### Trade-Offs and Design Rationale
+
+- Streams + Pub/Sub together provide both durable processing and live fanout.
+- ZSET-based ranking simplifies dispatch but requires careful score tuning.
+- Bitmap/HLL drastically reduce analytics cost, with known precision trade-offs.
+- Lua improves correctness under concurrency but increases script governance complexity.
+- Multi-cluster separation reduces noisy-neighbor effects at operational cost.
+
+---
+
+### Interview Evaluation Rubric (Lead-Level Signals)
+
+A strong lead-level solution should explicitly cover:
+- Data structure fit by access pattern (not by habit)
+- Atomic invariants and idempotency strategy
+- Failure modes and compensating actions
+- Capacity planning (memory + cardinality growth)
+- Operational model (monitoring, runbooks, SLOs)
+- Security, compliance boundaries, and data lifecycle
+- Clear trade-offs with rationale, not just feature listing
+
+## 7) Example Architecture Patterns
 
 - **Leaderboard system**: `ZSET` for scores, `HASH` for player profile.
 - **Rate limiter**: `STRING` counters with TTL, or `ZSET` sliding window for precision.
