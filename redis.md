@@ -581,3 +581,60 @@ These questions are based on the solution above and are designed to evaluate arc
 ---
 
 Use this document as a baseline and tune based on your workload’s real traffic shape, memory budget, and correctness requirements.
+
+---
+
+## 7) Interview Question and Model Answer
+
+### Interview Question
+You are building a **Product Service** for a high-traffic e-commerce platform.
+
+Requirements:
+- APIs:
+  - Get product details (name, description, category)
+  - Get product price (frequently updated)
+  - Get product inventory (near real-time)
+- Traffic:
+  - 95% reads, 5% writes
+- Problem:
+  - Database latency is high due to repeated reads
+
+How would you design Redis caching and data modeling to reduce DB load while keeping price and inventory reasonably fresh?
+
+### Model Answer
+I would design this as a **cache-aside + selective write-through** pattern with different Redis structures and TTLs per data type, because details, price, and inventory have very different freshness requirements.
+
+1. **Use separate keys by concern**
+   - `product:{id}:details` (Hash or JSON string): name, description, category
+   - `product:{id}:price` (String/Hash field): current price, currency, updated_at
+   - `product:{id}:inventory` (String/Hash field): available_qty, updated_at
+
+2. **Cache strategy by API**
+   - **Product details**: cache-aside with longer TTL (for example 30–120 minutes), since details change infrequently.
+   - **Price**: shorter TTL (for example 30–120 seconds) plus write-through/invalidation on price updates so reads are fresh.
+   - **Inventory**: very short TTL (for example 5–15 seconds) or event-driven updates from inventory service to Redis for near real-time reads.
+
+3. **Read flow (95% traffic)**
+   - Read from Redis first.
+   - On miss, fetch from DB, populate Redis, then return.
+   - Add **jitter to TTLs** to prevent cache stampedes.
+   - Use request coalescing/mutex for hot keys so only one request repopulates on miss.
+
+4. **Write flow (5% traffic)**
+   - DB remains source of truth.
+   - On successful write:
+     - Update/invalidate corresponding Redis key immediately.
+     - For price/inventory, prefer publishing update events so all app nodes refresh quickly.
+
+5. **Consistency and reliability**
+   - Accept eventual consistency for details.
+   - Keep stricter freshness for price/inventory via short TTL + proactive invalidation.
+   - Include `updated_at`/version in cached payload to detect stale data.
+   - Optionally use stale-while-revalidate for details to protect p99 latency.
+
+6. **Operational safeguards**
+   - Monitor cache hit rate, p95 latency, evictions, and hot keys.
+   - Pre-warm top products.
+   - Use namespaced versioned keys (e.g., `v1:product:{id}:price`) for safe schema evolution.
+
+This approach removes most repeated reads from the database while preserving correctness where it matters most (price and inventory), which is ideal for a 95/5 read-heavy workload.
