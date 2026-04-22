@@ -77,10 +77,10 @@ public class JavaStreamMentalModelExamples {
      * Pipeline -> source employees, filter by dept, map to name, collect list.
      */
     private static void example1FilterMapCollect(List<Employee> employees) {
-        List<String> engineeringNames = employees.stream()
-                .filter(e -> "Engineering".equals(e.department))
-                .map(e -> e.name)
-                .collect(Collectors.toList());
+        List<String> engineeringNames = employees.stream() // Step 1: Start stream from employees source list.
+                .filter(e -> "Engineering".equals(e.department)) // Step 2: Filter only Engineering employees.
+                .map(e -> e.name) // Step 3: Transform each employee into employee name.
+                .collect(Collectors.toList()); // Step 4: Collect transformed names into a List.
 
         print("1) Engineering employee names", engineeringNames);
     }
@@ -90,9 +90,9 @@ public class JavaStreamMentalModelExamples {
      * Final shape is a long count.
      */
     private static void example2CountCondition(List<Employee> employees) {
-        long count = employees.stream()
-                .filter(e -> e.age > 30)
-                .count();
+        long count = employees.stream() // Step 1: Start stream from employees source list.
+                .filter(e -> e.age > 30) // Step 2: Filter employees whose age is greater than 30.
+                .count(); // Step 3: Count remaining filtered employees.
 
         print("2) Count of employees age > 30", count);
     }
@@ -102,9 +102,9 @@ public class JavaStreamMentalModelExamples {
      * Use mapToDouble when you need numeric aggregation.
      */
     private static void example3SumWithMapToDouble(List<Employee> employees) {
-        double totalSalary = employees.stream()
-                .mapToDouble(e -> e.salary)
-                .sum();
+        double totalSalary = employees.stream() // Step 1: Start stream from employees source list.
+                .mapToDouble(e -> e.salary) // Step 2: Transform each employee into salary as double.
+                .sum(); // Step 3: Sum all salary values.
 
         print("3) Total salary", totalSalary);
     }
@@ -114,8 +114,8 @@ public class JavaStreamMentalModelExamples {
      * Final shape is Map<Department, List<Employee>>.
      */
     private static void example4Grouping(List<Employee> employees) {
-        Map<String, List<Employee>> byDept = employees.stream()
-                .collect(Collectors.groupingBy(e -> e.department));
+        Map<String, List<Employee>> byDept = employees.stream() // Step 1: Start stream from employees source list.
+                .collect(Collectors.groupingBy(e -> e.department)); // Step 2: Collect employees grouped by department key.
 
         print("4) Employees grouped by department", byDept);
     }
@@ -125,11 +125,11 @@ public class JavaStreamMentalModelExamples {
      * Final shape is Map<Department, AverageSalary>.
      */
     private static void example5NestedGrouping(List<Employee> employees) {
-        Map<String, Double> avgSalaryByDept = employees.stream()
-                .collect(Collectors.groupingBy(
+        Map<String, Double> avgSalaryByDept = employees.stream() // Step 1: Start stream from employees source list.
+                .collect(Collectors.groupingBy( // Step 2: Collect results grouped by department.
                         e -> e.department,
-                        Collectors.averagingDouble(e -> e.salary)
-                ));
+                        Collectors.averagingDouble(e -> e.salary) // Step 3: Aggregate each department by averaging salaries.
+                )); // Step 4: Finalize grouped average-salary map.
 
         print("5) Average salary by department", avgSalaryByDept);
     }
@@ -139,10 +139,10 @@ public class JavaStreamMentalModelExamples {
      * Pipeline -> sort descending by salary, limit(3), collect list.
      */
     private static void example6TopNBySorting(List<Employee> employees) {
-        List<Employee> top3Paid = employees.stream()
-                .sorted(Comparator.comparingDouble((Employee e) -> e.salary).reversed())
-                .limit(3)
-                .collect(Collectors.toList());
+        List<Employee> top3Paid = employees.stream() // Step 1: Start stream from employees source list.
+                .sorted(Comparator.comparingDouble((Employee e) -> e.salary).reversed()) // Step 2: Sort employees by salary descending.
+                .limit(3) // Step 3: Keep only first 3 employees after sorting.
+                .collect(Collectors.toList()); // Step 4: Collect top employees into a List.
 
         print("6) Top 3 highest-paid employees", top3Paid);
     }
@@ -152,10 +152,10 @@ public class JavaStreamMentalModelExamples {
      * Useful for cleaning and ordering textual data.
      */
     private static void example7DistinctSortedWords(List<String> words) {
-        List<String> cleaned = words.stream()
-                .distinct()
-                .sorted(Comparator.comparingInt(String::length).thenComparing(Function.identity()))
-                .collect(Collectors.toList());
+        List<String> cleaned = words.stream() // Step 1: Start stream from words source list.
+                .distinct() // Step 2: Remove duplicate words.
+                .sorted(Comparator.comparingInt(String::length).thenComparing(Function.identity())) // Step 3: Sort words by length, then alphabetically.
+                .collect(Collectors.toList()); // Step 4: Collect sorted unique words into a List.
 
         print("7) Distinct words sorted by length then alpha", cleaned);
     }
@@ -165,12 +165,12 @@ public class JavaStreamMentalModelExamples {
      * flatMap changes Stream<List<Integer>> to Stream<Integer>.
      */
     private static void example8FlattenNestedList(List<List<Integer>> nestedNumbers) {
-        List<Integer> evens = nestedNumbers.stream()
-                .flatMap(List::stream)
-                .filter(n -> n % 2 == 0)
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+        List<Integer> evens = nestedNumbers.stream() // Step 1: Start stream from nestedNumbers source list.
+                .flatMap(List::stream) // Step 2: Flatten nested lists into a single integer stream.
+                .filter(n -> n % 2 == 0) // Step 3: Filter only even numbers.
+                .distinct() // Step 4: Remove duplicate even numbers.
+                .sorted() // Step 5: Sort numbers in ascending order.
+                .collect(Collectors.toList()); // Step 6: Collect final numbers into a List.
 
         print("8) Flattened unique even numbers", evens);
     }
@@ -180,10 +180,10 @@ public class JavaStreamMentalModelExamples {
      * Final shape is Optional<Employee> since match may not exist.
      */
     private static void example9FirstMatchWithOptional(List<Employee> employees) {
-        Optional<Employee> first = employees.stream()
-                .filter(e -> "Sales".equals(e.department))
-                .filter(e -> e.salary > 70000)
-                .findFirst();
+        Optional<Employee> first = employees.stream() // Step 1: Start stream from employees source list.
+                .filter(e -> "Sales".equals(e.department)) // Step 2: Filter employees in Sales department.
+                .filter(e -> e.salary > 70000) // Step 3: Filter Sales employees with salary above 70000.
+                .findFirst(); // Step 4: Take first employee that matches all filters.
 
         print("9) First Sales employee with salary > 70000", first.orElse(null));
     }
@@ -193,8 +193,8 @@ public class JavaStreamMentalModelExamples {
      * partitioningBy gives Map<Boolean, List<Employee>> (true/false buckets).
      */
     private static void example10Partitioning(List<Employee> employees) {
-        Map<Boolean, List<Employee>> partitioned = employees.stream()
-                .collect(Collectors.partitioningBy(e -> e.salary >= 80000));
+        Map<Boolean, List<Employee>> partitioned = employees.stream() // Step 1: Start stream from employees source list.
+                .collect(Collectors.partitioningBy(e -> e.salary >= 80000)); // Step 2: Collect employees into true/false salary threshold partitions.
 
         print("10) Partition employees by salary >= 80000", partitioned);
     }
@@ -204,8 +204,8 @@ public class JavaStreamMentalModelExamples {
      * Final shape is Map<Word, Count>.
      */
     private static void example11FrequencyMap(List<String> words) {
-        Map<String, Long> freq = words.stream()
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+        Map<String, Long> freq = words.stream() // Step 1: Start stream from words source list.
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting())); // Step 2: Group identical words and count occurrences.
 
         print("11) Word frequency map", freq);
     }
@@ -215,11 +215,11 @@ public class JavaStreamMentalModelExamples {
      * Demonstrates reduce for custom accumulation.
      */
     private static void example12CustomReduction(List<Employee> employees) {
-        String seniorNames = employees.stream()
-                .filter(e -> e.age >= 35)
-                .map(e -> e.name)
-                .sorted()
-                .reduce("", (acc, name) -> acc.isEmpty() ? name : acc + ", " + name);
+        String seniorNames = employees.stream() // Step 1: Start stream from employees source list.
+                .filter(e -> e.age >= 35) // Step 2: Filter employees with age 35 or more.
+                .map(e -> e.name) // Step 3: Transform each employee into employee name.
+                .sorted() // Step 4: Sort names alphabetically.
+                .reduce("", (acc, name) -> acc.isEmpty() ? name : acc + ", " + name); // Step 5: Reduce names into one comma-separated string.
 
         print("12) Senior employee names (age >= 35)", seniorNames);
     }
