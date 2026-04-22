@@ -287,3 +287,52 @@ ORDER BY dept_id;
 ```
 
 > Alternative (portable) approach: use row numbers and counts to average middle value(s).
+
+### Q11) Stored procedure + function for bonus calculation (same domain)
+
+**Question:**  
+Using the same `Department` and `Employee` domain:
+1. Create a **function** that returns a department's average salary.  
+2. Create a **stored procedure** that gives a bonus to employees in a department whose salary is below that department average.  
+3. Execute the procedure for a department and verify updated salaries.
+
+```sql
+-- 1) Function: return average salary for a department
+CREATE OR REPLACE FUNCTION fn_dept_avg_salary(p_dept_id INT)
+RETURNS DECIMAL(12,2)
+LANGUAGE SQL
+AS $$
+  SELECT COALESCE(AVG(e.salary), 0)::DECIMAL(12,2)
+  FROM Employee e
+  WHERE e.dept_id = p_dept_id;
+$$;
+
+-- 2) Stored procedure: apply bonus (%) to employees below department average
+CREATE OR REPLACE PROCEDURE sp_apply_bonus_below_avg(
+  p_dept_id INT,
+  p_bonus_pct DECIMAL(5,2)
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_avg_salary DECIMAL(12,2);
+BEGIN
+  v_avg_salary := fn_dept_avg_salary(p_dept_id);
+
+  UPDATE Employee
+  SET salary = ROUND(salary * (1 + p_bonus_pct / 100.0), 2)
+  WHERE dept_id = p_dept_id
+    AND salary < v_avg_salary;
+END;
+$$;
+
+-- 3) Example execution + verification
+CALL sp_apply_bonus_below_avg(10, 10.00); -- 10% bonus for dept 10 employees below avg
+
+SELECT emp_id, emp_name, dept_id, salary
+FROM Employee
+WHERE dept_id = 10
+ORDER BY salary DESC, emp_id;
+```
+
+> Interview extension: Ask the candidate how they would add an audit table and transaction-safe rollback behavior when the update affects more rows than expected.
