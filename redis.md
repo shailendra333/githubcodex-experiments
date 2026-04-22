@@ -463,4 +463,121 @@ A strong lead-level solution should explicitly cover:
 
 ---
 
+## 8) Lead-Level Interview Questions and Model Answers
+
+These questions are based on the solution above and are designed to evaluate architecture depth, trade-off clarity, and operational maturity.
+
+### Q1) Why did you choose both Streams and Pub/Sub instead of just one?
+**Model answer (what strong looks like):**
+- They solve different reliability needs.
+- **Streams** are the durable system-of-record event log with replay and consumer-group tracking.
+- **Pub/Sub** is for low-latency transient fanout to live clients (e.g., active order screen updates).
+- If Pub/Sub messages are missed, the client can recover from Stream-backed current state.
+- This separation keeps UX snappy while preserving auditability and recovery guarantees.
+
+### Q2) How do you make inventory reservation safe under high concurrency?
+**Model answer:**
+- Use a Lua script to atomically:
+  1. read stock,
+  2. validate `stock >= requested`,
+  3. decrement stock,
+  4. write reservation marker/idempotency token.
+- This prevents oversell from race conditions that occur with multi-round-trip logic.
+- Add request idempotency key (`SET NX EX`) so retries do not double-reserve.
+- Emit reservation events to Stream for reconciliation and observability.
+
+### Q3) When would you prefer WATCH/MULTI/EXEC over Lua?
+**Model answer:**
+- Prefer Lua when correctness depends on strict single-step invariants under contention.
+- Prefer `WATCH/MULTI/EXEC` when:
+  - contention is moderate,
+  - logic is simple,
+  - optimistic retry cost is acceptable,
+  - maintainability is better without scripts.
+- In practice, use Lua for critical paths (inventory/order transitions), optimistic transactions for non-critical metadata updates.
+
+### Q4) How do you model driver dispatch ranking in Redis?
+**Model answer:**
+- Candidate pool from GEO radius query (`geo:couriers:{city}`).
+- Eligibility filter via sets (active, not blocked, right vehicle type).
+- Final rank in ZSET with a composite score (distance, acceptance rate, current load, rating).
+- Keep scoring function versioned (e.g., `dispatch:v2`) to allow controlled rollouts and A/B tests.
+- Recompute/expire candidate sets quickly to avoid stale dispatch decisions.
+
+### Q5) What are your hottest keys and how do you protect the system from hot-key collapse?
+**Model answer:**
+- Likely hot keys: popular store inventory, surge config, zone-level dispatch sets.
+- Mitigations:
+  - key sharding for aggregate counters,
+  - local in-process cache for ultra-hot read-mostly config,
+  - request coalescing,
+  - shorter TTL with jitter to avoid synchronized expiry,
+  - targeted replica reads (where consistency allows).
+- Instrument top-key usage and set alerting on per-key QPS thresholds.
+
+### Q6) How do you decide what must be durable vs reconstructable?
+**Model answer:**
+- **Durable:** order state transitions, reservation/payment linkage, irreversible user actions.
+- **Reconstructable:** leaderboards, cache projections, temporary ranking candidates.
+- Durable data gets stronger persistence policy (AOF + backups + replay strategy).
+- Reconstructable data favors performance and bounded TTL; can be rebuilt from durable streams.
+
+### Q7) How would you design idempotency end-to-end for checkout?
+**Model answer:**
+- Client sends idempotency key per checkout intent.
+- API gateway/service writes `idempotency:checkout:{key}` (`SET NX EX`).
+- All side effects bind to that key (order id, reservation result, payment attempt reference).
+- Retries return the same canonical outcome instead of re-executing business logic.
+- Timeout policy is explicit (e.g., 24h) and monitored for key growth.
+
+### Q8) How do you use Bitmap vs HyperLogLog in analytics, and what mistakes do candidates make?
+**Model answer:**
+- Bitmap: exact-ish presence by integer ID (e.g., daily active users by user-id bit offset).
+- HyperLogLog: approximate unique count at tiny memory footprint when exact identity is unnecessary.
+- Common mistakes:
+  - using HLL for billing-grade exact counts,
+  - using bitmap on sparse/non-numeric IDs causing memory waste,
+  - not documenting acceptable error bounds.
+
+### Q9) What SLOs and alerts would you define for this Redis-heavy system?
+**Model answer:**
+- SLOs:
+  - P99 latency by critical command groups,
+  - stream lag bounds per consumer group,
+  - order state propagation delay.
+- Alerts:
+  - replication lag spikes,
+  - eviction rate > baseline,
+  - consumer pending backlog growth,
+  - memory fragmentation and hot-key anomalies.
+- Include error-budget policy to trigger load shedding for non-critical writes.
+
+### Q10) How do you evolve schema/key design safely in production?
+**Model answer:**
+- Use versioned keys (`order:v2:{id}`), dual-write during migration, read-fallback to old keys.
+- Backfill asynchronously, validate with sampled checksums/consistency reports.
+- Cut over with feature flag and rollback plan.
+- Declare TTL and ownership for every new keyspace before launch.
+
+### Q11) If a consumer group is down for 30 minutes, what is your recovery plan?
+**Model answer:**
+- Keep producers writing to Streams (durable buffer absorbs outage).
+- On recovery:
+  - inspect pending/lag,
+  - scale consumer instances horizontally,
+  - process oldest-first for correctness-sensitive topics,
+  - dead-letter poison messages after bounded retries.
+- Track catch-up ETA and degrade non-critical downstream jobs until lag is healthy.
+
+### Q12) What is the biggest trade-off in this design?
+**Model answer:**
+- Complexity vs capability.
+- Combining many Redis primitives enables low latency and rich behavior, but operational burden rises:
+  - more keyspaces,
+  - stricter observability needs,
+  - stronger governance for scripts and TTL hygiene.
+- A lead-level design acknowledges this and defines ownership/runbooks/SLOs up front.
+
+---
+
 Use this document as a baseline and tune based on your workload’s real traffic shape, memory budget, and correctness requirements.
