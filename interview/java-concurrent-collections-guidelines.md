@@ -299,3 +299,165 @@ When evaluating a candidate's collection choice, check whether they reasoned abo
 - Add load-test evidence for high-risk paths (queues/caches/counters).
 - Standardize on `ConcurrentHashMap` as default concurrent map unless sorted/range semantics are required.
 - Prefer bounded queues in service code unless there is a proven reason not to.
+
+---
+
+## 7) Interview questions with real-world use cases
+
+Use these questions to test whether a candidate can connect Java concurrent collections to production trade-offs, not just API names.
+
+### 1. High-throughput request de-duplication
+
+**Question:** A payment service receives duplicate retry requests from multiple instances. You need to process each idempotency key once while many threads race to register the same key. Which collection and operation would you use?
+
+**Expected answer:** Use `ConcurrentHashMap` or `ConcurrentHashMap.newKeySet()` with atomic operations such as `putIfAbsent`, `computeIfAbsent`, or `add`. Avoid `containsKey` followed by `put` because the check-then-act sequence can race.
+
+**Real-world use case:** API idempotency keys, duplicate message suppression, webhook replay protection, and distributed job submission guards.
+
+**Follow-ups:**
+- How would you expire old keys?
+- What happens if processing fails after the key is inserted?
+- Would you store a status object instead of just a key?
+
+### 2. Concurrent cache population
+
+**Question:** Several request threads need a user profile from a remote service. If the profile is missing locally, only one thread should load it and the rest should reuse the result. How can `ConcurrentHashMap` help?
+
+**Expected answer:** Use `computeIfAbsent` to atomically associate a key with a computed value. For expensive or blocking loads, discuss whether the mapping function should store a `CompletableFuture`, whether failures should remove the entry, and whether a dedicated cache library is more appropriate.
+
+**Real-world use case:** User profile caches, authorization policy caches, feature flag lookups, tenant metadata, and service discovery registries.
+
+**Follow-ups:**
+- Why can a slow mapping function be risky?
+- How do you prevent cache stampedes across JVMs?
+- How would you add TTL, size limits, or refresh behavior?
+
+### 3. Counting events under heavy contention
+
+**Question:** A metrics collector increments counters for thousands of requests per second from many threads. Should you use `AtomicLong`, `LongAdder`, or a synchronized map of counters?
+
+**Expected answer:** Use `LongAdder` for hot counters because it scales better under contention. Store counters in a `ConcurrentHashMap<String, LongAdder>` and initialize with `computeIfAbsent`. Use `AtomicLong` when exact read-modify-write semantics are required for a single value.
+
+**Real-world use case:** Per-endpoint request counts, error counters, rate-limit observations, business event telemetry, and in-memory aggregation before export.
+
+**Follow-ups:**
+- Why is `LongAdder.sum()` not a globally atomic snapshot?
+- How would you reset counters safely?
+- When would approximate metrics be unacceptable?
+
+### 4. Bounded ingestion pipeline
+
+**Question:** A log ingestion service has producer threads parsing network input and consumer threads writing batches to storage. During a storage slowdown, memory must not grow without bound. Which queue should you choose?
+
+**Expected answer:** Use a bounded `BlockingQueue`, commonly `ArrayBlockingQueue` for predictable memory or a bounded `LinkedBlockingQueue` for separate producer/consumer locks. Pair the queue with a clear overload policy: block, timeout, reject, shed low-priority logs, or apply upstream backpressure.
+
+**Real-world use case:** Log pipelines, image processing workers, fraud scoring queues, email sending buffers, and asynchronous audit event writers.
+
+**Follow-ups:**
+- What is dangerous about the default `LinkedBlockingQueue` constructor?
+- How would queue capacity be selected?
+- What metrics would you expose?
+
+### 5. Direct handoff without buffering
+
+**Question:** A service should create work only when a worker is ready to take it; buffering is not allowed because tasks become stale quickly. Which concurrent collection fits this pattern?
+
+**Expected answer:** Use `SynchronousQueue`, where each `put` must rendezvous with a matching `take`. It provides strong backpressure and zero internal capacity, but throughput depends on the timing of producers and consumers.
+
+**Real-world use case:** Thread pool handoff, live market data processing, real-time alert dispatch, and systems where stale work should not be queued.
+
+**Follow-ups:**
+- How does fairness mode affect throughput and ordering?
+- What happens when no consumer is available?
+- How would you add timeouts or fallback behavior?
+
+### 6. Priority-based task scheduling
+
+**Question:** An operations platform must process incident notifications before low-priority report-generation jobs. Which queue can model this, and what issue must you address?
+
+**Expected answer:** Use `PriorityBlockingQueue` with a comparator. Because it is unbounded, it does not provide backpressure by itself. Also ensure equal-priority ordering if FIFO within priority is required, commonly by adding a sequence number.
+
+**Real-world use case:** Incident handling, customer support escalation, workflow engines, print queues, and prioritized background job executors.
+
+**Follow-ups:**
+- How do you prevent starvation of low-priority work?
+- How would you bound the queue?
+- Why might a normal `ThreadPoolExecutor` configuration behave unexpectedly with this queue?
+
+### 7. Retry after delay
+
+**Question:** Failed messages should be retried only after their next retry time. Consumers should not busy-wait or repeatedly poll unavailable work. What structure would you use?
+
+**Expected answer:** Use `DelayQueue` with elements implementing `Delayed`. Consumers block until the head element's delay expires. Discuss unbounded growth, poison messages, max retry count, jitter, and persistence if retries must survive process restarts.
+
+**Real-world use case:** Retry schedulers, token refresh queues, delayed notification delivery, order timeout processing, and temporary ban expiration.
+
+**Follow-ups:**
+- How do you implement `compareTo` and `getDelay` correctly?
+- What happens if the JVM restarts?
+- When would an external broker or scheduler be better?
+
+### 8. Listener registry with frequent reads and rare writes
+
+**Question:** An application maintains a list of listeners. Events are published thousands of times per second, but listeners are added or removed only during configuration changes. Which collection is appropriate?
+
+**Expected answer:** Use `CopyOnWriteArrayList` or `CopyOnWriteArraySet`. Iteration is snapshot-based and safe without explicit locks, making event dispatch simple and predictable. The trade-off is expensive mutation because each write copies the backing array.
+
+**Real-world use case:** Event listeners, plugin hooks, configuration observers, health-check subscribers, and callback registries.
+
+**Follow-ups:**
+- Why is this a poor choice for chat room membership?
+- What does a listener added during dispatch observe?
+- How do you handle slow or failing listeners?
+
+### 9. Sorted concurrent access and range queries
+
+**Question:** A pricing engine stores active orders by price and needs concurrent inserts, removals, and range queries such as all orders between two prices. Why is `ConcurrentHashMap` not enough?
+
+**Expected answer:** Use `ConcurrentSkipListMap` or `ConcurrentSkipListSet` because they maintain sorted order and support range views like `subMap`, `headMap`, and `tailMap`. The trade-off is higher overhead than hash-based lookup.
+
+**Real-world use case:** Order books, leaderboard windows, time-indexed session stores, scheduled task lookup by timestamp, and range-based routing tables.
+
+**Follow-ups:**
+- What comparator pitfalls can break correctness?
+- Are range view iterations strongly consistent?
+- How would you handle multiple orders with the same price?
+
+### 10. Work queue where `size()` drives decisions
+
+**Question:** A developer uses `ConcurrentLinkedQueue.size()` on every request to decide whether to reject new work. What is the problem, and what would you do instead?
+
+**Expected answer:** `ConcurrentLinkedQueue.size()` is O(n) and can be inaccurate while concurrent updates occur. Prefer a bounded `BlockingQueue` for backpressure, maintain a separate counter if approximate observability is enough, or use admission control before enqueueing.
+
+**Real-world use case:** API overload protection, async task submission, telemetry buffering, and in-memory work queues.
+
+**Follow-ups:**
+- When is an approximate size acceptable?
+- How can a separate counter become inconsistent?
+- Why might a bounded queue be simpler and safer?
+
+### 11. Compound updates across multiple keys
+
+**Question:** A wallet service stores balances in a `ConcurrentHashMap<AccountId, Balance>`. A transfer debits one account and credits another. Is `ConcurrentHashMap` enough to make the transfer atomic?
+
+**Expected answer:** No. `ConcurrentHashMap` makes individual map operations thread-safe, but multi-key invariants still require a broader synchronization strategy, such as ordered per-account locks, database transactions, or a single-threaded actor/partition model.
+
+**Real-world use case:** Wallet transfers, inventory reservations, seat booking, resource allocation, and quota movement between tenants.
+
+**Follow-ups:**
+- How do you avoid deadlocks with per-account locks?
+- Why might database transactions be preferable?
+- What invariants must tests verify under concurrency?
+
+### 12. Choosing between synchronized wrappers and concurrent collections
+
+**Question:** A legacy service wraps a `HashMap` with `Collections.synchronizedMap`. Under load, request latency rises sharply. Why might replacing it with `ConcurrentHashMap` help, and what migration risks remain?
+
+**Expected answer:** `Collections.synchronizedMap` serializes access through a coarse-grained lock, while `ConcurrentHashMap` supports much better concurrent access. Migration still requires reviewing iteration behavior, null key/value assumptions, compound operations, and external synchronization that may have been protecting larger invariants.
+
+**Real-world use case:** Legacy session maps, in-memory registries, plugin state, feature flag stores, and application-level caches.
+
+**Follow-ups:**
+- Why must synchronized wrapper iteration use external synchronization?
+- What changes because `ConcurrentHashMap` rejects nulls?
+- Which existing tests might become invalid because iteration is weakly consistent?
