@@ -29,7 +29,7 @@ target/
 Thumbs.db
 
 # ── SQLite database files ─────────────────────────────────────────────────
-*.db
+# *.db      # tracked intentionally — files are small
 *.db-shm
 *.db-wal
 
