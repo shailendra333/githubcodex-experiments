@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JPA vs JDBC Benchmark</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1e2235; font-size: 15px; line-height: 1.6; }
+
+  .topbar { background:#fff; border-bottom:1px solid #e2e6f0; padding:0 28px; height:52px;
+            display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100;
+            box-shadow:0 1px 6px rgba(0,0,0,.06); }
+  .topbar .logo { font-weight:700; color:#3b5bdb; font-size:1rem; }
+
+  .hero { background:linear-gradient(135deg,#0891b2 0%,#3b5bdb 100%);
+          color:#fff; padding:48px 24px 40px; text-align:center; }
+  .hero h1 { font-size:2rem; font-weight:800; margin-bottom:10px; }
+  .hero p  { opacity:.9; max-width:560px; margin:0 auto; font-size:.95rem; }
+
+  .wrap { max-width:1060px; margin:0 auto; padding:40px 20px 80px; }
+
+  /* ── no data notice ── */
+  .no-data { background:#fff; border:1px solid #e2e6f0; border-radius:12px;
+             padding:40px; text-align:center; color:#8892a4; margin-bottom:28px; }
+  .no-data a { color:#3b5bdb; font-weight:600; }
+
+  /* ── comparison grid ── */
+  .compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:32px; }
+
+  .engine-card { background:#fff; border:2px solid #e2e6f0; border-radius:14px; overflow:hidden; }
+  .engine-card.jpa  { border-color:#c7d2fe; }
+  .engine-card.jdbc { border-color:#a5f3fc; }
+
+  .engine-header { padding:20px 24px; border-bottom:1px solid #eaecf4; }
+  .engine-header.jpa  { background:#eef2ff; }
+  .engine-header.jdbc { background:#ecfeff; }
+
+  .engine-title { font-size:1.2rem; font-weight:800; }
+  .engine-title.jpa  { color:#3730a3; }
+  .engine-title.jdbc { color:#0e7490; }
+
+  .engine-sub { font-size:.78rem; color:#6b7280; margin-top:3px; }
+  .engine-body { padding:22px 24px; }
+
+  /* ── metric rows ── */
+  .metric-row { display:flex; justify-content:space-between; align-items:center;
+                padding:10px 0; border-bottom:1px solid #f1f3f9; font-size:.9rem; }
+  .metric-row:last-child { border-bottom:none; }
+  .metric-label { color:#6b7280; }
+  .metric-value { font-weight:700; font-size:1rem; color:#1e2235; }
+  .metric-value.green  { color:#059669; }
+  .metric-value.blue   { color:#2563eb; }
+  .metric-value.purple { color:#7c3aed; }
+  .metric-value.cyan   { color:#0891b2; }
+  .metric-value.winner { color:#d97706; }
+
+  /* ── winner badge ── */
+  .winner-badge { background:#fef3c7; color:#92400e; border:1px solid #fcd34d;
+                  padding:2px 10px; border-radius:999px; font-size:.72rem; font-weight:700; margin-left:8px; }
+
+  /* ── summary comparison bar chart ── */
+  .bar-section { background:#fff; border:1px solid #e2e6f0; border-radius:14px;
+                 padding:28px 28px; margin-bottom:28px; }
+  .bar-section h2 { font-size:1rem; font-weight:700; margin-bottom:20px; color:#1e2235; }
+  .bar-wrap { margin-bottom:18px; }
+  .bar-label { display:flex; justify-content:space-between; font-size:.82rem;
+               color:#6b7280; margin-bottom:5px; }
+  .bar-track { background:#f1f3f9; border-radius:999px; height:14px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:999px; transition:width .6s; }
+  .bar-fill.jpa  { background:#818cf8; }
+  .bar-fill.jdbc { background:#22d3ee; }
+  .bar-legend { display:flex; gap:20px; margin-top:14px; font-size:.82rem; color:#6b7280; }
+  .bar-legend span { display:flex; align-items:center; gap:6px; }
+  .dot-jpa  { width:10px;height:10px;border-radius:50%;background:#818cf8;display:inline-block; }
+  .dot-jdbc { width:10px;height:10px;border-radius:50%;background:#22d3ee;display:inline-block; }
+
+  /* ── what differs table ── */
+  .diff-table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  .diff-table th { background:#f8f9fe; color:#3b5bdb; font-weight:700;
+                   text-align:left; padding:10px 14px; border-bottom:2px solid #e2e6f0; }
+  .diff-table td { padding:10px 14px; border-bottom:1px solid #eaecf4; color:#374151; vertical-align:top; }
+  .diff-table tr:last-child td { border-bottom:none; }
+  .diff-table tr:nth-child(even) td { background:#fafbff; }
+  .diff-table .jpa-col  { color:#3730a3; font-weight:600; }
+  .diff-table .jdbc-col { color:#0e7490; font-weight:600; }
+
+  .diff-card { background:#fff; border:1px solid #e2e6f0; border-radius:14px; padding:24px 28px; margin-bottom:28px; }
+  .diff-card h2 { font-size:1rem; font-weight:700; margin-bottom:16px; color:#1e2235; }
+
+  .btn { display:inline-block; padding:10px 20px; border-radius:8px; font-weight:600;
+         font-size:.88rem; text-decoration:none; cursor:pointer; border:none; }
+  .btn-primary { background:#3b5bdb; color:#fff; }
+  .btn-outline  { background:#fff; border:2px solid #e2e6f0; color:#374151; }
+  .btn:hover { opacity:.88; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:28px; }
+
+  .note { background:#fffbeb; border:1px solid #fcd34d; border-radius:8px;
+          padding:12px 16px; font-size:.82rem; color:#92400e; margin-bottom:24px; }
+
+  @media(max-width:700px){ .compare-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <span class="logo">☕ CSV Upload Demo</span>
+  <span style="color:#8892a4;font-size:.85rem;">⚡ JPA vs JDBC Benchmark</span>
+</nav>
+
+<header class="hero">
+  <h1>⚡ JPA vs JDBC — Side-by-Side</h1>
+  <p>Upload the same CSV twice — once with each engine — then return here to compare
+     speed, throughput, and peak heap usage.</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ── no data yet ── -->
+  <div class="no-data" th:if="${jpaJob == null and jdbcJob == null}">
+    <div style="font-size:2.5rem;margin-bottom:12px;">📭</div>
+    <p>No completed jobs yet.</p>
+    <p style="margin-top:8px;">
+      <a href="/">Upload a CSV with the JPA engine</a>, then upload it again
+      with the JDBC engine, and come back here to compare.
+    </p>
+  </div>
+
+  <div class="note" th:if="${jpaJob == null or jdbcJob == null}">
+    ℹ️ Only one engine has run so far.
+    Upload the same file with
+    <strong th:text="${jpaJob == null ? 'JPA' : 'JDBC'}">the other</strong>
+    engine to see the full comparison.
+  </div>
+
+  <!-- ── per-engine cards ── -->
+  <div class="compare-grid" th:if="${jpaJob != null or jdbcJob != null}">
+
+    <!-- JPA card -->
+    <div class="engine-card jpa">
+      <div class="engine-header jpa">
+        <div class="engine-title jpa">🏗 JPA / Hibernate</div>
+        <div class="engine-sub" th:if="${jpaJob != null}"
+             th:text="${jpaJob.fileName + ' · ' + jpaJob.processedCount + ' rows'}"></div>
+        <div class="engine-sub" th:if="${jpaJob == null}">No completed job yet</div>
+      </div>
+      <div class="engine-body" th:if="${jpaJob != null}">
+        <div class="metric-row">
+          <span class="metric-label">⏱ Duration</span>
+          <span class="metric-value blue" id="jpa-dur"
+                th:text="${#numbers.formatDecimal(jpaJob.durationMs / 1000.0, 1, 2) + ' s'}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">🚀 Throughput</span>
+          <span class="metric-value green" id="jpa-thr"
+                th:text="${#numbers.formatInteger(jpaJob.throughputRowsPerSec,1,'COMMA') + ' rows/sec'}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">💾 Peak Heap</span>
+          <span class="metric-value purple" id="jpa-heap"
+                th:text="${jpaJob.peakHeapMb + ' MB'}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">✅ Processed</span>
+          <span class="metric-value"
+                th:text="${#numbers.formatInteger(jpaJob.processedCount,1,'COMMA')}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">🆕 Inserts</span>
+          <span class="metric-value"
+                th:text="${#numbers.formatInteger(jpaJob.insertedCount,1,'COMMA')}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">🔄 Updates</span>
+          <span class="metric-value"
+                th:text="${#numbers.formatInteger(jpaJob.updatedCount,1,'COMMA')}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">❌ Failed</span>
+          <span class="metric-value" style="color:#dc2626;"
+                th:text="${jpaJob.failedCount}">—</span>
+        </div>
+      </div>
+      <div class="engine-body" th:if="${jpaJob == null}" style="color:#8892a4;text-align:center;padding:32px;">
+        No data yet
+      </div>
+    </div>
+
+    <!-- JDBC card -->
+    <div class="engine-card jdbc">
+      <div class="engine-header jdbc">
+        <div class="engine-title jdbc">⚡ Pure JDBC</div>
+        <div class="engine-sub" th:if="${jdbcJob != null}"
+             th:text="${jdbcJob.fileName + ' · ' + jdbcJob.processedCount + ' rows'}"></div>
+        <div class="engine-sub" th:if="${jdbcJob == null}">No completed job yet</div>
+      </div>
+      <div class="engine-body" th:if="${jdbcJob != null}">
+        <div class="metric-row">
+          <span class="metric-label">⏱ Duration</span>
+          <span class="metric-value blue" id="jdbc-dur"
+                th:text="${#numbers.formatDecimal(jdbcJob.durationMs / 1000.0, 1, 2) + ' s'}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">🚀 Throughput</span>
+          <span class="metric-value green" id="jdbc-thr"
+                th:text="${#numbers.formatInteger(jdbcJob.throughputRowsPerSec,1,'COMMA') + ' rows/sec'}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">💾 Peak Heap</span>
+          <span class="metric-value purple" id="jdbc-heap"
+                th:text="${jdbcJob.peakHeapMb + ' MB'}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">✅ Processed</span>
+          <span class="metric-value"
+                th:text="${#numbers.formatInteger(jdbcJob.processedCount,1,'COMMA')}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">🆕 Upserted</span>
+          <span class="metric-value"
+                th:text="${#numbers.formatInteger(jdbcJob.processedCount,1,'COMMA')}">—</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">🔄 Insert/Update split</span>
+          <span class="metric-value" style="color:#8892a4;font-size:.82rem;">N/A (SQLite ON CONFLICT)</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">❌ Failed</span>
+          <span class="metric-value" style="color:#dc2626;"
+                th:text="${jdbcJob.failedCount}">—</span>
+        </div>
+      </div>
+      <div class="engine-body" th:if="${jdbcJob == null}" style="color:#8892a4;text-align:center;padding:32px;">
+        No data yet
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── bar chart comparison ── -->
+  <div class="bar-section" th:if="${jpaJob != null and jdbcJob != null}">
+    <h2>📊 Visual Comparison</h2>
+
+    <!-- Duration bar -->
+    <div class="bar-wrap">
+      <div class="bar-label">
+        <span>⏱ Duration (lower = better)</span>
+        <span>
+          <span th:text="${#numbers.formatDecimal(jpaJob.durationMs/1000.0,1,2)+'s JPA'}"></span>
+          vs
+          <span th:text="${#numbers.formatDecimal(jdbcJob.durationMs/1000.0,1,2)+'s JDBC'}"></span>
+        </span>
+      </div>
+      <div class="bar-track" style="margin-bottom:4px;">
+        <div class="bar-fill jpa" id="bar-dur-jpa"></div>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill jdbc" id="bar-dur-jdbc"></div>
+      </div>
+    </div>
+
+    <!-- Throughput bar -->
+    <div class="bar-wrap">
+      <div class="bar-label">
+        <span>🚀 Throughput (higher = better)</span>
+        <span>
+          <span th:text="${#numbers.formatInteger(jpaJob.throughputRowsPerSec,1,'COMMA')+' JPA'}"></span>
+          vs
+          <span th:text="${#numbers.formatInteger(jdbcJob.throughputRowsPerSec,1,'COMMA')+' JDBC rows/sec'}"></span>
+        </span>
+      </div>
+      <div class="bar-track" style="margin-bottom:4px;">
+        <div class="bar-fill jpa"  id="bar-thr-jpa"></div>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill jdbc" id="bar-thr-jdbc"></div>
+      </div>
+    </div>
+
+    <!-- Heap bar -->
+    <div class="bar-wrap">
+      <div class="bar-label">
+        <span>💾 Peak Heap (lower = better)</span>
+        <span>
+          <span th:text="${jpaJob.peakHeapMb+' MB JPA'}"></span>
+          vs
+          <span th:text="${jdbcJob.peakHeapMb+' MB JDBC'}"></span>
+        </span>
+      </div>
+      <div class="bar-track" style="margin-bottom:4px;">
+        <div class="bar-fill jpa"  id="bar-heap-jpa"></div>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill jdbc" id="bar-heap-jdbc"></div>
+      </div>
+    </div>
+
+    <div class="bar-legend">
+      <span><span class="dot-jpa"></span> JPA / Hibernate</span>
+      <span><span class="dot-jdbc"></span> Pure JDBC</span>
+    </div>
+  </div>
+
+  <!-- ── difference table ── -->
+  <div class="diff-card">
+    <h2>🔍 Engine Differences Explained</h2>
+    <table class="diff-table">
+      <thead>
+        <tr>
+          <th>Aspect</th>
+          <th class="jpa-col">JPA / Hibernate</th>
+          <th class="jdbc-col">Pure JDBC</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Upsert mechanism</strong></td>
+          <td>SELECT all externalIds in batch → merge DB ids → saveAll()<br/><em>2 round-trips per batch</em></td>
+          <td>Single <code>INSERT … ON CONFLICT DO UPDATE</code><br/><em>1 round-trip per batch</em></td>
+        </tr>
+        <tr>
+          <td><strong>Object allocation</strong></td>
+          <td>500 Customer entities × ~300 B = ~150 KB per batch<br/>+ Hibernate snapshot copies</td>
+          <td>Object[500][8] param array = ~10–15 KB per batch<br/>No entity objects created</td>
+        </tr>
+        <tr>
+          <td><strong>First-level cache</strong></td>
+          <td>Accumulates all touched entities — requires explicit <code>flush()+clear()</code> after each batch</td>
+          <td>Does not exist — nothing to clear</td>
+        </tr>
+        <tr>
+          <td><strong>Dirty checking</strong></td>
+          <td>Hibernate snapshots every field on load/merge</td>
+          <td>None</td>
+        </tr>
+        <tr>
+          <td><strong>Insert/Update split</strong></td>
+          <td>Tracked exactly (via SELECT lookup)</td>
+          <td>Not available — SQLite reports 1 for both</td>
+        </tr>
+        <tr>
+          <td><strong>Code complexity</strong></td>
+          <td>More abstractions, entity mapping, projection interface</td>
+          <td>Simpler — raw strings → JDBC params</td>
+        </tr>
+        <tr>
+          <td><strong>Best for</strong></td>
+          <td>Domain-rich models, relationships, complex queries</td>
+          <td>Bulk ingestion, maximum throughput, minimal memory</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="actions">
+    <a href="/" class="btn btn-primary">⬆ Upload Another File</a>
+    <a href="/api/jobs/benchmark" target="_blank" class="btn btn-outline">📋 Raw JSON</a>
+  </div>
+
+</div>
+
+<script th:inline="javascript">
+  const jpaMs   = /*[[${jpaJob  != null ? jpaJob.durationMs  : 0}]]*/ 0;
+  const jdbcMs  = /*[[${jdbcJob != null ? jdbcJob.durationMs : 0}]]*/ 0;
+  const jpaThr  = /*[[${jpaJob  != null ? jpaJob.throughputRowsPerSec  : 0}]]*/ 0;
+  const jdbcThr = /*[[${jdbcJob != null ? jdbcJob.throughputRowsPerSec : 0}]]*/ 0;
+  const jpaHeap = /*[[${jpaJob  != null ? jpaJob.peakHeapMb  : 0}]]*/ 0;
+  const jdbcHeap= /*[[${jdbcJob != null ? jdbcJob.peakHeapMb : 0}]]*/ 0;
+
+  function pct(a, b, invert) {
+    if (a === 0 && b === 0) return [50, 50];
+    const max = Math.max(a, b);
+    const pa = Math.max(4, Math.round((a / max) * 100));
+    const pb = Math.max(4, Math.round((b / max) * 100));
+    return invert ? [pa, pb] : [pa, pb];
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    // Duration bars (lower = better → invert: longer bar = worse)
+    const [pd1, pd2] = pct(jpaMs, jdbcMs, false);
+    setBar('bar-dur-jpa',  pd1);
+    setBar('bar-dur-jdbc', pd2);
+
+    // Throughput bars (higher = better)
+    const [pt1, pt2] = pct(jpaThr, jdbcThr, false);
+    setBar('bar-thr-jpa',  pt1);
+    setBar('bar-thr-jdbc', pt2);
+
+    // Heap bars (lower = better)
+    const [ph1, ph2] = pct(jpaHeap, jdbcHeap, false);
+    setBar('bar-heap-jpa',  ph1);
+    setBar('bar-heap-jdbc', ph2);
+  });
+
+  function setBar(id, pct) {
+    const el = document.getElementById(id);
+    if (el) el.style.width = pct + '%';
+  }
+</script>
+</body>
+</html>
+

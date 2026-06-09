@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Java 21 Concurrency &amp; Collections Reference</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f4f6f9;
+      color: #1e2330;
+      line-height: 1.5;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+      color: #fff;
+      padding: 2rem 2.5rem 1.5rem;
+    }
+    header h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.3px; }
+    header p  { margin-top: .4rem; opacity: .88; font-size: .95rem; }
+
+    /* ── Legend bar ── */
+    .legend {
+      display: flex; flex-wrap: wrap; gap: .6rem;
+      padding: .9rem 2.5rem;
+      background: #fff;
+      border-bottom: 1px solid #dde3ed;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .78rem; font-weight: 600;
+      padding: .25rem .65rem; border-radius: 999px;
+    }
+    .badge-ts  { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .badge-nts { background: #fff8e1; color: #e65100; border: 1px solid #ffe082; }
+    .badge-leg { background: #fce4ec; color: #880e4f; border: 1px solid #f48fb1; }
+
+    /* ── Filter tabs ── */
+    .tabs {
+      display: flex; flex-wrap: wrap; gap: .5rem;
+      padding: .8rem 2.5rem;
+      background: #f4f6f9;
+    }
+    .tab {
+      padding: .35rem .9rem; border-radius: 6px; border: 1px solid #c5cce0;
+      background: #fff; cursor: pointer; font-size: .83rem; font-weight: 600;
+      color: #444; transition: background .15s, color .15s;
+    }
+    .tab:hover  { background: #e8f0fe; color: #1a73e8; border-color: #93b4f5; }
+    .tab.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+
+    /* ── Main table wrapper ── */
+    .table-wrap {
+      overflow-x: auto;
+      padding: 0 2.5rem 3rem;
+    }
+
+    table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      margin-top: 1rem;
+      font-size: .875rem;
+    }
+
+    thead tr { background: #e8f0fe; }
+    th {
+      padding: .85rem 1rem; text-align: left;
+      font-size: .78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: #3c4a6e;
+      border-bottom: 2px solid #c5cce0;
+      position: sticky; top: 0; z-index: 2;
+      background: #e8f0fe;
+    }
+    th:first-child { border-radius: 12px 0 0 0; }
+    th:last-child  { border-radius: 0 12px 0 0; }
+
+    td { padding: .75rem 1rem; vertical-align: top; border-bottom: 1px solid #edf0f7; }
+
+    tr:last-child td { border-bottom: none; }
+    tr:last-child td:first-child { border-radius: 0 0 0 12px; }
+    tr:last-child td:last-child  { border-radius: 0 0 12px 0; }
+
+    tbody tr:hover td { background: #f8faff; }
+
+    /* ── Section header rows ── */
+    tr.section-header td {
+      background: #dde3f5;
+      font-weight: 700;
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #2c3e7a;
+      padding: .55rem 1rem;
+    }
+
+    /* ── Name cell ── */
+    .name {
+      font-weight: 700; font-size: .9rem;
+      color: #1a3a8f;
+      white-space: nowrap;
+    }
+    .pkg { font-weight: 400; font-size: .73rem; color: #7e8eaf; display: block; }
+
+    /* ── Thread-safety badge inside table ── */
+    .ts-badge {
+      display: inline-block; padding: .15rem .5rem;
+      border-radius: 999px; font-size: .72rem; font-weight: 700;
+      white-space: nowrap;
+    }
+    .ts  { background: #e8f5e9; color: #2e7d32; }
+    .nts { background: #fff8e1; color: #e65100; }
+    .leg { background: #fce4ec; color: #880e4f; }
+
+    /* ── Complexity chips ── */
+    .chip {
+      display: inline-block; padding: .1rem .45rem;
+      border-radius: 5px; font-size: .72rem; font-weight: 600;
+      background: #eff3fb; color: #3c4a8a; margin: .1rem .15rem .1rem 0;
+      border: 1px solid #c8d2ee;
+    }
+
+    /* ── Use / Avoid columns ── */
+    .use   { color: #2e7d32; }
+    .avoid { color: #c62828; }
+    ul.hints { padding-left: 1.1rem; margin: 0; }
+    ul.hints li { margin-bottom: .25rem; }
+
+    /* ── Hidden rows ── */
+    tr.hidden { display: none; }
+
+    /* ── Main section nav ── */
+    .main-nav {
+      display: flex; flex-wrap: wrap; gap: .4rem;
+      padding: .7rem 2.5rem;
+      background: #fff;
+      border-bottom: 2px solid #dde3ed;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+    }
+    .main-nav button {
+      padding: .38rem 1.05rem; border-radius: 7px; border: 1.5px solid #c5cce0;
+      background: #f8f9fc; cursor: pointer; font-size: .86rem; font-weight: 600;
+      color: #444; transition: all .15s;
+    }
+    .main-nav button:hover  { background: #e8f0fe; color: #1a73e8; border-color: #93b4f5; }
+    .main-nav button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+
+    /* ── Section pages ── */
+    .section-page          { display: none; }
+    .section-page.active   { display: block; }
+
+    /* ── New section shared styles ── */
+    .sec-content { padding: 1.5rem 2.5rem 3rem; }
+    .sec-hdr {
+      display: flex; align-items: flex-start; gap: 1rem;
+      background: #fff; border-radius: 12px; padding: 1.3rem 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07); margin-bottom: 1.8rem;
+      border-left: 5px solid var(--accent,#1a73e8);
+    }
+    .sec-hdr .ico { font-size: 2.4rem; line-height: 1; }
+    .sec-hdr h2  { font-size: 1.35rem; font-weight: 700; margin-bottom: .3rem; }
+    .sec-hdr p   { color: #5a6380; font-size: .92rem; }
+
+    .sec-sub { font-size: 1.05rem; font-weight: 700; color: #1e2330; margin: 1.6rem 0 .9rem; padding-bottom: .3rem; border-bottom: 2px solid #e4e8f5; }
+
+    /* ── Card grid ── */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(310px,1fr)); gap: 1.1rem; margin-bottom: 1.8rem; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); overflow: hidden; }
+    .card-head { padding: .75rem 1.1rem; display: flex; align-items: baseline; gap: .5rem; }
+    .card-head h3 { font-size: .97rem; font-weight: 700; }
+    .card-head .pkg-lbl { font-size: .71rem; color: #8a94b0; }
+    .card-body { padding: .75rem 1.1rem 1rem; font-size: .85rem; color: #3a4255; }
+    .card-body p { margin-bottom: .55rem; }
+
+    /* ── Pills ── */
+    .pill-row { display: flex; flex-wrap: wrap; gap: .3rem; margin: .4rem 0; }
+    .pill { font-size: .73rem; font-weight: 600; padding: .18rem .58rem; border-radius: 999px; border: 1px solid; display: inline-block; }
+    .p-green  { background:#e8f5e9; color:#2e7d32; border-color:#a5d6a7; }
+    .p-red    { background:#ffebee; color:#c62828; border-color:#ef9a9a; }
+    .p-blue   { background:#e3f2fd; color:#1565c0; border-color:#90caf9; }
+    .p-orange { background:#fff3e0; color:#e65100; border-color:#ffcc80; }
+    .p-purple { background:#f3e5f5; color:#6a1b9a; border-color:#ce93d8; }
+    .p-gray   { background:#f5f5f5; color:#424242; border-color:#bdbdbd; }
+    .p-teal   { background:#e0f2f1; color:#00695c; border-color:#80cbc4; }
+
+    /* ── Use/avoid grid inside card ── */
+    .ua-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-top:.7rem; font-size:.8rem; }
+    .ua-use  { background:#f1f8e9; border-radius:7px; padding:.55rem .7rem; }
+    .ua-avd  { background:#fbe9e7; border-radius:7px; padding:.55rem .7rem; }
+    .ua-use h4 { color:#2e7d32; font-size:.75rem; margin-bottom:.25rem; }
+    .ua-avd h4 { color:#c62828; font-size:.75rem; margin-bottom:.25rem; }
+    .ua-use ul, .ua-avd ul { padding-left:.95rem; margin:0; }
+    .ua-use li, .ua-avd li { margin-bottom:.18rem; }
+
+    /* ── Code blocks ── */
+    .code {
+      background:#1e2330; color:#abb2bf;
+      padding:.9rem 1.1rem; border-radius:8px;
+      font-family:'Cascadia Code','Fira Code',Consolas,monospace;
+      font-size:.79rem; line-height:1.7; overflow-x:auto;
+      white-space:pre; margin:.6rem 0;
+    }
+    .kw { color:#c678dd; } .cm { color:#5c6370; font-style:italic; }
+    .st { color:#98c379; } .nm { color:#e5c07b; }
+    .fn { color:#61afef; } .nu { color:#d19a66; }
+    .ann{ color:#56b6c2; }
+
+    /* ── Diagram box ── */
+    .diagram { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1.1rem 1.3rem; margin-bottom:1.5rem; }
+    .diagram h3 { font-size:.92rem; font-weight:700; color:#2c3e7a; margin-bottom:.9rem; }
+
+    /* ── Thread / flow visual elements ── */
+    .flow { display:flex; align-items:center; flex-wrap:wrap; gap:.4rem; margin:.45rem 0; font-size:.81rem; }
+    .t-box { border-radius:7px; padding:.28rem .75rem; font-weight:700; font-size:.79rem; border:2px solid; white-space:nowrap; }
+    .t-run  { background:#e3f2fd; border-color:#90caf9; color:#1565c0; }
+    .t-wait { background:#fff8e1; border-color:#ffe082; color:#e65100; }
+    .t-lock { background:#e8f5e9; border-color:#a5d6a7; color:#2e7d32; }
+    .t-blk  { background:#fce4ec; border-color:#f48fb1; color:#880e4f; }
+    .l-box  { border-radius:7px; padding:.28rem .75rem; font-size:.79rem; border:2px dashed; white-space:nowrap; }
+    .l-free { background:#fafafa; border-color:#9e9e9e; color:#616161; }
+    .l-held { background:#e8f5e9; border-color:#4caf50; color:#2e7d32; }
+    .l-cont { background:#fce4ec; border-color:#e91e63; color:#880e4f; }
+    .arr    { color:#607d8b; font-weight:700; font-size:.95rem; }
+
+    /* ── Timeline ── */
+    .tl-wrap { margin:.7rem 0; font-size:.79rem; }
+    .tl-hdr  { display:flex; padding-left:95px; color:#9e9e9e; margin-bottom:.2rem; }
+    .tl-tick { width:55px; text-align:center; border-left:1px dashed #ddd; padding:.1rem 0; }
+    .tl-row  { display:flex; align-items:center; gap:0; margin-bottom:.35rem; }
+    .tl-lbl  { width:95px; min-width:95px; font-weight:600; color:#3a4255; font-size:.78rem; }
+    .tl-bar  { height:24px; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:600; border-radius:4px; }
+    .tb-run  { background:#1a73e8; color:#fff; }
+    .tb-wait { background:#e0e0e0; color:#757575; }
+    .tb-blk  { background:#ef5350; color:#fff; }
+    .tb-done { background:#43a047; color:#fff; }
+
+    /* ── Pool diagram ── */
+    .pool-diag { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin:.8rem 0; }
+    .pd-box { border-radius:10px; padding:.65rem .9rem; border:2px solid; }
+    .pd-box h4 { font-size:.77rem; font-weight:700; margin-bottom:.35rem; }
+    .pd-tasks   { background:#fff3e0; border-color:#ffb74d; color:#e65100; }
+    .pd-queue   { background:#e3f2fd; border-color:#64b5f6; color:#1565c0; }
+    .pd-workers { background:#f3e5f5; border-color:#ba68c8; color:#6a1b9a; min-width:150px; }
+    .pd-results { background:#e8f5e9; border-color:#81c784; color:#2e7d32; }
+    .w-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.25rem; }
+    .w-cell { border-radius:4px; text-align:center; padding:.18rem .3rem; font-size:.69rem; font-weight:700; }
+    .w-busy { background:#ce93d8; color:#fff; }
+    .w-idle { background:#fff; color:#9e9e9e; border:1px dashed #bdbdbd; }
+
+    /* ── CF pipeline ── */
+    .cf-pipe { display:flex; flex-direction:column; gap:.35rem; margin:.8rem 0; font-size:.82rem; }
+    .cf-row  { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; }
+    .cf-box  { padding:.35rem .95rem; border-radius:8px; font-weight:700; font-size:.78rem; border:2px solid; white-space:nowrap; }
+    .cf-sup  { background:#e3f2fd; border-color:#90caf9; color:#1565c0; }
+    .cf-apl  { background:#f3e5f5; border-color:#ce93d8; color:#6a1b9a; }
+    .cf-cmp  { background:#fff3e0; border-color:#ffcc80; color:#e65100; }
+    .cf-cmb  { background:#e8f5e9; border-color:#a5d6a7; color:#2e7d32; }
+    .cf-acc  { background:#fce4ec; border-color:#f48fb1; color:#880e4f; }
+    .cf-err  { background:#ffebee; border-color:#ef9a9a; color:#c62828; border-style:dashed; }
+    .cf-note { font-size:.75rem; color:#7e8eaf; }
+
+    /* ── FJ tree ── */
+    .fj-tree { display:flex; flex-direction:column; align-items:center; gap:.3rem; font-size:.79rem; }
+    .fj-level { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
+    .fj-node  { display:flex; flex-direction:column; align-items:center; }
+    .fj-box   { padding:.3rem .75rem; border-radius:7px; font-weight:700; border:2px solid; white-space:nowrap; }
+    .fj-root  { background:#e3f2fd; border-color:#1565c0; color:#1565c0; }
+    .fj-fork  { background:#f3e5f5; border-color:#6a1b9a; color:#6a1b9a; }
+    .fj-leaf  { background:#e8f5e9; border-color:#2e7d32; color:#2e7d32; }
+    .fj-res   { background:#fff3e0; border-color:#e65100; color:#e65100; }
+    .fj-con   { width:2px; height:16px; background:#b0bec5; }
+    .fj-hline { display:flex; border-top:2px solid #b0bec5; margin:0 1rem; }
+
+    /* ── Work-stealing diagram ── */
+    .ws-wrap { display:flex; gap:.8rem; flex-wrap:wrap; margin:.8rem 0; align-items:flex-start; }
+    .ws-th { background:#fff; border-radius:10px; border:2px solid #90caf9; padding:.65rem .8rem; min-width:120px; }
+    .ws-th h4 { font-size:.78rem; font-weight:700; color:#1565c0; text-align:center; margin-bottom:.4rem; }
+    .ws-q { background:#e3f2fd; border-radius:5px; padding:.3rem; min-height:50px; }
+    .ws-t { border-radius:4px; text-align:center; padding:.12rem .35rem; margin-bottom:.18rem; font-size:.71rem; font-weight:600; border:1.5px solid; }
+    .ws-t.run    { background:#e8f5e9; border-color:#81c784; color:#2e7d32; }
+    .ws-t.pend   { background:#fff; border-color:#90caf9; color:#1565c0; }
+    .ws-t.stolen { background:#fff3e0; border-color:#ffb74d; color:#e65100; }
+    .ws-t.empty  { background:#f5f5f5; border-color:#bdbdbd; color:#9e9e9e; font-style:italic; }
+    .ws-steal    { font-size:1.3rem; color:#ff7043; align-self:center; font-weight:700; }
+
+    /* ── Info callout boxes ── */
+    .info-box    { background:#e8f4fd; border-left:4px solid #1a73e8; border-radius:0 8px 8px 0; padding:.8rem 1rem; margin:.7rem 0; font-size:.86rem; }
+    .warn-box    { background:#fff8e1; border-left:4px solid #f9a825; border-radius:0 8px 8px 0; padding:.8rem 1rem; margin:.7rem 0; font-size:.86rem; }
+    .danger-box  { background:#ffebee; border-left:4px solid #f44336; border-radius:0 8px 8px 0; padding:.8rem 1rem; margin:.7rem 0; font-size:.86rem; }
+    .success-box { background:#e8f5e9; border-left:4px solid #43a047; border-radius:0 8px 8px 0; padding:.8rem 1rem; margin:.7rem 0; font-size:.86rem; }
+
+    /* ── Comparison table ── */
+    .cmp-tbl { width:100%; border-collapse:separate; border-spacing:0; background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1.8rem; font-size:.84rem; }
+    .cmp-tbl th { background:#e8f0fe; padding:.7rem 1rem; text-align:left; font-size:.76rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#3c4a6e; border-bottom:2px solid #c5cce0; }
+    .cmp-tbl td { padding:.65rem 1rem; border-bottom:1px solid #edf0f7; vertical-align:top; }
+    .cmp-tbl tr:last-child td { border-bottom:none; }
+    .cmp-tbl tbody tr:hover td { background:#f8faff; }
+    .yes { color:#2e7d32; font-weight:700; } .no { color:#c62828; font-weight:700; } .par { color:#e65100; font-weight:700; }
+
+    /* ── Two/Three col layout ── */
+    .two-col   { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; margin-bottom:1.5rem; }
+    .three-col { display:grid; grid-template-columns:repeat(3,1fr); gap:1.1rem; margin-bottom:1.5rem; }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .table-wrap, .tabs, .legend, .main-nav, .sec-content { padding-left: 1rem; padding-right: 1rem; }
+      header { padding: 1.2rem 1rem 1rem; }
+      header h1 { font-size: 1.4rem; }
+      .two-col, .three-col, .card-grid { grid-template-columns: 1fr; }
+      .ua-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>☕ Java 21 — Concurrency &amp; Collections Reference</h1>
+  <p>Collections · Locks &amp; Synchronizers · Thread Pools · CompletableFuture · Fork/Join — all in one place.</p>
+</header>
+
+<!-- ── Main navigation ── -->
+<nav class="main-nav">
+  <button class="active" onclick="showSection('s-collections',this)">📦 Collections</button>
+  <button onclick="showSection('s-locks',this)">🔒 Locks &amp; Synchronizers</button>
+  <button onclick="showSection('s-pools',this)">🏊 Thread Pools</button>
+  <button onclick="showSection('s-cf',this)">⚡ CompletableFuture</button>
+  <button onclick="showSection('s-fj',this)">🔱 Fork / Join</button>
+</nav>
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 – COLLECTIONS
+═══════════════════════════════════════════ -->
+<div id="s-collections" class="section-page active">
+
+<!-- Legend -->
+<div class="legend">
+  <span class="badge badge-nts">● Non-Thread-Safe</span>
+  <span class="badge badge-ts">● Thread-Safe (concurrent)</span>
+  <span class="badge badge-leg">● Thread-Safe (legacy / synchronized)</span>
+</div>
+
+<!-- Filter tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="filterTable('all', this)">All</button>
+  <button class="tab" onclick="filterTable('list', this)">Lists</button>
+  <button class="tab" onclick="filterTable('map', this)">Maps</button>
+  <button class="tab" onclick="filterTable('set', this)">Sets</button>
+  <button class="tab" onclick="filterTable('queue', this)">Queues &amp; Deques</button>
+  <button class="tab" onclick="filterTable('ts', this)">Thread-Safe only</button>
+  <button class="tab" onclick="filterTable('nts', this)">Non-Thread-Safe only</button>
+</div>
+
+<div class="table-wrap">
+<table id="main-table">
+  <thead>
+    <tr>
+      <th style="width:14%">Class / Interface</th>
+      <th style="width:7%">Thread Safety</th>
+      <th style="width:18%">Purpose</th>
+      <th style="width:22%">Internal Implementation</th>
+      <th style="width:10%">Key Complexities</th>
+      <th style="width:15%">✅ When to Use</th>
+      <th style="width:14%">🚫 When to Avoid</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- ════════════════════════ LISTS ════════════════════════ -->
+    <tr class="section-header" data-cat="list">
+      <td colspan="7">📋 Lists</td>
+    </tr>
+
+    <tr data-cat="list" data-ts="nts">
+      <td class="name">ArrayList<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Resizable random-access list backed by an array.</td>
+      <td>Dynamic array; default capacity 10, grows by 50% on overflow. Elements stored contiguously in memory enabling O(1) index access.</td>
+      <td>
+        <span class="chip">get O(1)</span>
+        <span class="chip">add O(1)†</span>
+        <span class="chip">insert O(n)</span>
+        <span class="chip">remove O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>General-purpose list</li>
+        <li>Frequent random access / iteration</li>
+        <li>When size is roughly known upfront</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Frequent inserts/deletes in the middle</li>
+        <li>Multi-threaded writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="list" data-ts="nts">
+      <td class="name">LinkedList<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Doubly-linked list; also implements <code>Deque</code>.</td>
+      <td>Each node holds prev/next pointers + element. No contiguous memory; higher per-element overhead (~40 bytes/node on 64-bit JVM).</td>
+      <td>
+        <span class="chip">get O(n)</span>
+        <span class="chip">add head/tail O(1)</span>
+        <span class="chip">insert O(1)*</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Frequent add/remove at head/tail</li>
+        <li>Implementing a queue or deque</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Random access (slow)</li>
+        <li>Memory-sensitive apps (pointer overhead)</li>
+        <li>Multi-threaded writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="list" data-ts="leg">
+      <td class="name">Vector<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge leg">Legacy-TS</span></td>
+      <td>Synchronized resizable array list (legacy).</td>
+      <td>Same as ArrayList but every method is <code>synchronized</code>. Grows by 100% (doubles) by default. Introduced in Java 1.0.</td>
+      <td>
+        <span class="chip">get O(1)</span>
+        <span class="chip">add O(1)†</span>
+        <span class="chip">insert O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Maintaining legacy codebases only</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>New code — use <code>ArrayList</code> + external sync or <code>CopyOnWriteArrayList</code></li>
+        <li>High-contention scenarios (coarse lock)</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="list" data-ts="leg">
+      <td class="name">Stack<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge leg">Legacy-TS</span></td>
+      <td>LIFO stack (extends Vector — legacy).</td>
+      <td>Subclass of Vector; push/pop/peek delegate to synchronized array operations.</td>
+      <td>
+        <span class="chip">push/pop O(1)</span>
+        <span class="chip">search O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Legacy code only</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>New code — prefer <code>ArrayDeque</code> as a stack</li>
+        <li>Inherits all Vector issues</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="list" data-ts="ts">
+      <td class="name">CopyOnWriteArrayList<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Thread-safe list optimised for read-heavy workloads.</td>
+      <td>Every mutating operation copies the entire underlying array. Readers see a consistent snapshot. Writes are expensive O(n).</td>
+      <td>
+        <span class="chip">get O(1)</span>
+        <span class="chip">add O(n)</span>
+        <span class="chip">iter O(n) no CME</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Listener/observer lists</li>
+        <li>Many readers, very few writers</li>
+        <li>When iterator stability is required</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Write-heavy scenarios (huge copy cost)</li>
+        <li>Large lists (memory doubled per write)</li>
+      </ul></td>
+    </tr>
+
+    <!-- ════════════════════════ MAPS ════════════════════════ -->
+    <tr class="section-header" data-cat="map">
+      <td colspan="7">🗺️ Maps</td>
+    </tr>
+
+    <tr data-cat="map" data-ts="nts">
+      <td class="name">HashMap<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>General-purpose key→value store. Allows one <code>null</code> key.</td>
+      <td>Array of buckets; each bucket is a linked list, treeified to a Red-Black Tree when ≥ 8 entries (Java 8+). Default load factor 0.75, initial capacity 16.</td>
+      <td>
+        <span class="chip">get/put O(1)†</span>
+        <span class="chip">worst O(log n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Default map choice</li>
+        <li>Fast lookup/insert, no ordering needed</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Concurrent access without synchronization</li>
+        <li>When insertion order matters — use <code>LinkedHashMap</code></li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="nts">
+      <td class="name">LinkedHashMap<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>HashMap that maintains insertion (or access) order.</td>
+      <td>Extends HashMap; nodes form a doubly-linked list in addition to the hash table. Access-ordered mode enables LRU caches via <code>removeEldestEntry</code>.</td>
+      <td>
+        <span class="chip">get/put O(1)†</span>
+        <span class="chip">iter O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>When insertion or access order matters</li>
+        <li>Building simple LRU caches</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>When sorting by key is needed (use TreeMap)</li>
+        <li>Concurrent writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="nts">
+      <td class="name">TreeMap<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Sorted map based on natural ordering or a <code>Comparator</code>.</td>
+      <td>Red-Black Tree (self-balancing BST). All keys must be mutually comparable. Supports navigation methods (<code>floorKey</code>, <code>ceilingKey</code>, range views).</td>
+      <td>
+        <span class="chip">get/put O(log n)</span>
+        <span class="chip">iter O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Range queries, sorted key iteration</li>
+        <li>Event scheduling, leaderboards</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>High-frequency random access (slower than HashMap)</li>
+        <li>Concurrent writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="nts">
+      <td class="name">EnumMap<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>High-performance map keyed by enum constants.</td>
+      <td>Internally a plain array indexed by the enum's ordinal. No hashing or tree balancing needed. Extremely compact and cache-friendly.</td>
+      <td>
+        <span class="chip">get/put O(1)</span>
+        <span class="chip">iter O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Keys are a fixed enum type</li>
+        <li>Performance-critical enum-keyed lookups</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Keys are not enums</li>
+        <li>Concurrent writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="nts">
+      <td class="name">IdentityHashMap<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Map using reference equality (<code>==</code>) instead of <code>.equals()</code>.</td>
+      <td>Open-addressing hash table using <code>System.identityHashCode</code>. Violates Map contract intentionally — equality is identity.</td>
+      <td>
+        <span class="chip">get/put O(1)†</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Object graph traversal (cycle detection)</li>
+        <li>Serialization frameworks, proxy caches</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>General-purpose use (violates equals contract)</li>
+        <li>Value types where equality semantics matter</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="nts">
+      <td class="name">WeakHashMap<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Map whose keys are held via weak references — GC can reclaim them.</td>
+      <td>Uses <code>WeakReference</code> for keys. Stale entries are cleaned during operations. Useful for caches where the lifecycle should follow the key's reachability.</td>
+      <td>
+        <span class="chip">get/put O(1)†</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Caches keyed by objects not owned by the map</li>
+        <li>Listener registries to prevent memory leaks</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>When keys are value types or Strings (interned)</li>
+        <li>When key lifetime must be guaranteed</li>
+        <li>Concurrent writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="leg">
+      <td class="name">Hashtable<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge leg">Legacy-TS</span></td>
+      <td>Synchronized hash map (legacy). Does not allow null keys or values.</td>
+      <td>Same bucket-chain design as HashMap but every method is <code>synchronized</code> on <code>this</code>. Pre-dates Java Collections Framework.</td>
+      <td>
+        <span class="chip">get/put O(1)†</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Legacy codebases only</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>New code — prefer <code>ConcurrentHashMap</code></li>
+        <li>High contention (single monitor lock)</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="ts">
+      <td class="name">ConcurrentHashMap<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>High-concurrency hash map; default general-purpose concurrent map.</td>
+      <td>Segmented into 16 independent lock stripes (Java 7) → CAS + synchronized on individual bucket heads (Java 8+, no global lock). Treeifies at threshold=8. Null keys/values not allowed.</td>
+      <td>
+        <span class="chip">get/put O(1)†</span>
+        <span class="chip">no global lock</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Default map for concurrent code</li>
+        <li>High-throughput read/write scenarios</li>
+        <li>Counters/aggregations via <code>merge</code>, <code>compute</code></li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>When null key/value is required</li>
+        <li>When compound operations need atomicity (use <code>compute</code> or external lock)</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="map" data-ts="ts">
+      <td class="name">ConcurrentSkipListMap<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Sorted, lock-free concurrent map (implements <code>ConcurrentNavigableMap</code>).</td>
+      <td>Skip list with multiple levels of linked lists for probabilistic O(log n) operations. Lock-free using CAS; supports concurrent range views.</td>
+      <td>
+        <span class="chip">get/put O(log n)</span>
+        <span class="chip">lock-free</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Concurrent sorted map / range queries</li>
+        <li>Event scheduling, rate-limiting buckets</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>When unsorted access is sufficient (use ConcurrentHashMap)</li>
+        <li>Memory-constrained environments (skip list overhead)</li>
+      </ul></td>
+    </tr>
+
+    <!-- ════════════════════════ SETS ════════════════════════ -->
+    <tr class="section-header" data-cat="set">
+      <td colspan="7">🔵 Sets</td>
+    </tr>
+
+    <tr data-cat="set" data-ts="nts">
+      <td class="name">HashSet<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Unordered set with O(1) membership tests. Backed by HashMap.</td>
+      <td>Wraps a <code>HashMap&lt;E, PRESENT&gt;</code>. All HashMap internals apply (bucketing, tree-ification). Allows one null element.</td>
+      <td>
+        <span class="chip">add/contains O(1)†</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Default set — fast membership test</li>
+        <li>Deduplication of elements</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Sorted iteration needed</li>
+        <li>Concurrent writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="set" data-ts="nts">
+      <td class="name">LinkedHashSet<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Set that maintains insertion order.</td>
+      <td>Backed by <code>LinkedHashMap</code>. Adds doubly-linked list on top of the hash table for predictable iteration.</td>
+      <td>
+        <span class="chip">add/contains O(1)†</span>
+        <span class="chip">iter O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Unique elements in insertion order</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Concurrent writes</li>
+        <li>Natural sort needed — use TreeSet</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="set" data-ts="nts">
+      <td class="name">TreeSet<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Sorted set backed by a Red-Black Tree (via <code>TreeMap</code>).</td>
+      <td>Delegates to a <code>TreeMap&lt;E,Object&gt;</code>. Elements must implement <code>Comparable</code> or a <code>Comparator</code> must be provided.</td>
+      <td>
+        <span class="chip">add/contains O(log n)</span>
+        <span class="chip">iter O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Sorted unique elements</li>
+        <li>Range queries, floor/ceiling operations</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Simple membership check (HashSet is faster)</li>
+        <li>Concurrent writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="set" data-ts="nts">
+      <td class="name">EnumSet<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Ultra-compact set for enum types only.</td>
+      <td><code>RegularEnumSet</code> (≤64 constants): single <code>long</code> bitmask. <code>JumboEnumSet</code> (&gt;64): <code>long[]</code>. Bitwise ops for all operations.</td>
+      <td>
+        <span class="chip">all ops O(1)</span>
+        <span class="chip">iter O(n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Best choice for enum-typed sets</li>
+        <li>Bitmask-like flag operations</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Non-enum elements</li>
+        <li>Concurrent writes</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="set" data-ts="ts">
+      <td class="name">CopyOnWriteArraySet<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Thread-safe set for read-heavy, small sets; backed by <code>CopyOnWriteArrayList</code>.</td>
+      <td>Uses a <code>CopyOnWriteArrayList</code> internally; membership check iterates the array (linear scan). No hashing.</td>
+      <td>
+        <span class="chip">contains O(n)</span>
+        <span class="chip">add O(n)</span>
+        <span class="chip">iter safe</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Small sets traversed frequently by many threads</li>
+        <li>Event/listener registries</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Large sets (linear scan for membership)</li>
+        <li>Write-heavy scenarios</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="set" data-ts="ts">
+      <td class="name">ConcurrentSkipListSet<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Sorted, lock-free concurrent set backed by <code>ConcurrentSkipListMap</code>.</td>
+      <td>Wrapper over <code>ConcurrentSkipListMap</code> with dummy values. Skip list provides probabilistic O(log n) operations without global locking.</td>
+      <td>
+        <span class="chip">add/contains O(log n)</span>
+        <span class="chip">lock-free</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Concurrent sorted set / range iteration</li>
+        <li>Concurrent priority-based unique collection</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Unsorted needs (use ConcurrentHashMap-backed set)</li>
+      </ul></td>
+    </tr>
+
+    <!-- ════════════════════════ QUEUES / DEQUES ════════════════════════ -->
+    <tr class="section-header" data-cat="queue">
+      <td colspan="7">📬 Queues &amp; Deques</td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="nts">
+      <td class="name">ArrayDeque<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Resizable circular-array deque. Preferred stack and queue implementation.</td>
+      <td>Circular array with head/tail pointers; doubles capacity when full. No capacity limit (unlike <code>ArrayBlockingQueue</code>). Null elements not allowed.</td>
+      <td>
+        <span class="chip">offer/poll head/tail O(1)†</span>
+        <span class="chip">get O(1)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Stack replacement (faster than Stack/LinkedList)</li>
+        <li>FIFO queue replacement (faster than LinkedList)</li>
+        <li>BFS/DFS algorithms</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Concurrent access</li>
+        <li>Bounded-capacity blocking scenarios</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="nts">
+      <td class="name">PriorityQueue<span class="pkg">java.util</span></td>
+      <td><span class="ts-badge nts">Non-TS</span></td>
+      <td>Min-heap that returns elements in priority order.</td>
+      <td>Binary min-heap over an array. <code>peek/poll</code> returns the smallest element. Elements must be <code>Comparable</code> or a <code>Comparator</code> supplied. Does not allow nulls.</td>
+      <td>
+        <span class="chip">offer O(log n)</span>
+        <span class="chip">poll O(log n)</span>
+        <span class="chip">peek O(1)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Dijkstra / A* / task scheduling</li>
+        <li>Top-K problems</li>
+        <li>Event-driven simulations</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Concurrent access without synchronization</li>
+        <li>When FIFO ordering is required (use ArrayDeque)</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">ConcurrentLinkedQueue<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Unbounded, lock-free FIFO queue.</td>
+      <td>Michael-Scott non-blocking linked queue algorithm using CAS. <code>size()</code> is O(n) — avoid it. No blocking operations.</td>
+      <td>
+        <span class="chip">offer/poll O(1)</span>
+        <span class="chip">size O(n)</span>
+        <span class="chip">lock-free</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>High-throughput producer/consumer (non-blocking)</li>
+        <li>Work queues where blocking is undesirable</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>When backpressure/bounded capacity is needed</li>
+        <li>When blocking await is required</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">ConcurrentLinkedDeque<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Unbounded, lock-free doubly-ended queue.</td>
+      <td>Lock-free doubly-linked deque (CAS-based). Supports efficient insertion/removal from both ends concurrently.</td>
+      <td>
+        <span class="chip">offer/poll both ends O(1)</span>
+        <span class="chip">lock-free</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Work-stealing patterns</li>
+        <li>Concurrent deque operations from multiple threads</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Bounded or blocking scenarios</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">ArrayBlockingQueue<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Bounded blocking FIFO queue backed by a fixed-size array.</td>
+      <td>Circular array with a single <code>ReentrantLock</code> + two <code>Condition</code>s (notEmpty, notFull). Capacity set at construction; cannot grow. Optionally fair ordering.</td>
+      <td>
+        <span class="chip">put/take O(1)</span>
+        <span class="chip">blocks on full/empty</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Producer/consumer with bounded buffer</li>
+        <li>Back-pressure / flow control</li>
+        <li>Thread-pool work queues</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Unbounded scenarios (use LinkedBlockingQueue)</li>
+        <li>Very high throughput (lock contention)</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">LinkedBlockingQueue<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Optionally bounded blocking FIFO queue backed by linked nodes.</td>
+      <td>Two-lock design: separate locks for head (take) and tail (put), enabling higher concurrency than <code>ArrayBlockingQueue</code>. Optionally bounded (default <code>Integer.MAX_VALUE</code>).</td>
+      <td>
+        <span class="chip">put/take O(1)</span>
+        <span class="chip">two-lock design</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>High-throughput producer/consumer</li>
+        <li>Default queue for <code>ThreadPoolExecutor</code></li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Unbounded use in memory-constrained apps (default is near-unlimited)</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">PriorityBlockingQueue<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Unbounded blocking min-heap queue.</td>
+      <td>Binary heap with a single <code>ReentrantLock</code>. Unbounded (grows dynamically). Blocks only on <code>take</code> when empty; never blocks on <code>put</code>.</td>
+      <td>
+        <span class="chip">offer O(log n)</span>
+        <span class="chip">poll O(log n)</span>
+        <span class="chip">peek O(1)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Concurrent priority scheduling</li>
+        <li>Task executors with priority levels</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Bounded capacity required (unbounded)</li>
+        <li>When FIFO among equal-priority items is needed</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">LinkedBlockingDeque<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Optionally bounded blocking deque (both-ended queue).</td>
+      <td>Doubly-linked list with a single lock. All <code>Deque</code> operations are blocking variants. Default capacity is <code>Integer.MAX_VALUE</code>.</td>
+      <td>
+        <span class="chip">put/take both ends O(1)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Work-stealing thread pools</li>
+        <li>When both head and tail blocking access is needed</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>High-throughput one-ended queues (use LinkedBlockingQueue)</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">SynchronousQueue<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Zero-capacity handoff queue: each put must wait for a take.</td>
+      <td>No internal storage. Uses a stack (unfair) or queue (fair) of waiting threads. A put blocks until a corresponding take occurs — direct thread-to-thread handoff.</td>
+      <td>
+        <span class="chip">put/take O(1)</span>
+        <span class="chip">zero buffer</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Direct thread handoff / rendezvous</li>
+        <li>Used internally by <code>Executors.newCachedThreadPool()</code></li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Any use case requiring buffering</li>
+        <li>When producer rate can exceed consumer rate</li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">DelayQueue<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Unbounded blocking queue where elements are released only after their delay has expired.</td>
+      <td>Backed by a <code>PriorityQueue</code> of <code>Delayed</code> elements with a <code>ReentrantLock</code>. <code>take()</code> blocks until the element with the smallest remaining delay expires.</td>
+      <td>
+        <span class="chip">offer O(log n)</span>
+        <span class="chip">poll O(log n)</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>Task scheduling with future expiry</li>
+        <li>Cache eviction, TTL-based queues</li>
+        <li>Session/token expiry</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>When immediate or FIFO ordering is needed</li>
+        <li>Elements are not <code>Delayed</code></li>
+      </ul></td>
+    </tr>
+
+    <tr data-cat="queue" data-ts="ts">
+      <td class="name">LinkedTransferQueue<span class="pkg">java.util.concurrent</span></td>
+      <td><span class="ts-badge ts">Thread-Safe</span></td>
+      <td>Unbounded, lock-free queue combining <code>SynchronousQueue</code> and <code>LinkedBlockingQueue</code> semantics.</td>
+      <td>Dual-data structure: nodes are either data nodes or reservation (waiter) nodes. CAS-based, lock-free. <code>transfer()</code> hands off directly to a waiting consumer; <code>put()</code> enqueues if no consumer waits.</td>
+      <td>
+        <span class="chip">transfer/put O(1)</span>
+        <span class="chip">lock-free</span>
+      </td>
+      <td class="use"><ul class="hints">
+        <li>High-performance message passing</li>
+        <li>When both buffering and direct handoff are needed</li>
+      </ul></td>
+      <td class="avoid"><ul class="hints">
+        <li>Simple producer/consumer where LinkedBlockingQueue suffices</li>
+        <li>Memory-sensitive apps (unbounded)</li>
+      </ul></td>
+    </tr>
+
+  </tbody>
+</table>
+</div><!-- /table-wrap -->
+
+</div><!-- /s-collections -->
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 – LOCKS & SYNCHRONIZERS
+═══════════════════════════════════════════ -->
+<div id="s-locks" class="section-page">
+<div class="sec-content" style="--accent:#7b1fa2">
+
+  <div class="sec-hdr">
+    <div class="ico">🔒</div>
+    <div>
+      <h2>Locks &amp; Synchronizers</h2>
+      <p>Java provides multiple synchronization primitives in <code>java.util.concurrent.locks</code> and <code>java.util.concurrent</code>. Choosing the right one prevents race conditions while maximising throughput.</p>
+    </div>
+  </div>
+
+  <!-- WHY LOCKS? -->
+  <div class="sec-sub">⚠️ The Problem — Race Conditions</div>
+  <div class="diagram">
+    <h3>Without synchronization: two threads read-modify-write the same variable</h3>
+    <div class="tl-wrap">
+      <div class="tl-hdr"><div class="tl-tick">t0</div><div class="tl-tick">t1</div><div class="tl-tick">t2</div><div class="tl-tick">t3</div><div class="tl-tick">t4</div></div>
+      <div class="tl-row"><div class="tl-lbl">Thread A</div><div class="tl-bar tb-run" style="width:55px">read(5)</div><div class="tl-bar tb-wait" style="width:55px"></div><div class="tl-bar tb-run" style="width:55px">+1→6</div><div class="tl-bar tb-run" style="width:55px">write(6)</div><div class="tl-bar tb-done" style="width:55px">✓</div></div>
+      <div class="tl-row"><div class="tl-lbl">Thread B</div><div class="tl-bar tb-wait" style="width:55px"></div><div class="tl-bar tb-run" style="width:55px">read(5)</div><div class="tl-bar tb-run" style="width:55px">+1→6</div><div class="tl-bar tb-wait" style="width:55px"></div><div class="tl-bar tb-run" style="width:55px">write(6)</div></div>
+    </div>
+    <div class="danger-box">🚨 Expected result: <strong>7</strong> — Actual result: <strong>6</strong> (lost update). Both threads read 5 before either writes back.</div>
+  </div>
+
+  <!-- SYNCHRONIZED vs REENTRANTLOCK -->
+  <div class="sec-sub">1 · synchronized vs ReentrantLock</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head" style="background:#e3f2fd"><h3>🔑 synchronized (built-in)</h3></div>
+      <div class="card-body">
+        <p>Java keyword; every object has an intrinsic monitor. JVM manages acquisition and release automatically.</p>
+        <div class="code"><span class="kw">synchronized</span> (<span class="nm">this</span>) {
+  <span class="cm">// critical section</span>
+  counter++;
+} <span class="cm">// auto-released on exit/exception</span></div>
+        <div class="pill-row">
+          <span class="pill p-green">✓ Auto-release</span>
+          <span class="pill p-green">✓ Simple syntax</span>
+          <span class="pill p-red">✗ No timeout</span>
+          <span class="pill p-red">✗ Not interruptible</span>
+          <span class="pill p-red">✗ No fair mode</span>
+        </div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Simple critical sections</li><li>Low contention code</li><li>Condition via wait/notify</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Need timed or interruptible locking</li><li>Need fairness guarantees</li></ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#f3e5f5"><h3>🔐 ReentrantLock</h3><span class="pkg-lbl">j.u.c.locks</span></div>
+      <div class="card-body">
+        <p>Explicit lock with the same mutual-exclusion semantics but far richer API. Re-entrant: same thread can acquire multiple times.</p>
+        <div class="code"><span class="nm">ReentrantLock</span> lock = <span class="kw">new</span> <span class="nm">ReentrantLock</span>(<span class="kw">true</span>); <span class="cm">// fair</span>
+
+<span class="kw">if</span> (lock.<span class="fn">tryLock</span>(<span class="nu">500</span>, <span class="nm">TimeUnit</span>.MILLISECONDS)) {
+  <span class="kw">try</span> { counter++; }
+  <span class="kw">finally</span> { lock.<span class="fn">unlock</span>(); }
+}</div>
+        <div class="pill-row">
+          <span class="pill p-green">✓ tryLock(timeout)</span>
+          <span class="pill p-green">✓ Interruptible</span>
+          <span class="pill p-green">✓ Fair mode</span>
+          <span class="pill p-green">✓ Multiple Conditions</span>
+          <span class="pill p-red">✗ Must call unlock()</span>
+        </div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Need timed / interruptible locking</li><li>Need fairness or multiple wait-sets</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Simple synchronized block suffices (extra overhead)</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- READWRITELOCK -->
+  <div class="sec-sub">2 · ReentrantReadWriteLock — separate read &amp; write locks</div>
+  <div class="diagram">
+    <h3>Many threads can read concurrently; only one can write (exclusive)</h3>
+    <div class="flow" style="margin-bottom:.6rem">
+      <div class="t-box t-run">Thread R1 📖</div><div class="arr">──READ──▶</div>
+      <div class="t-box t-run">Thread R2 📖</div><div class="arr">──READ──▶</div>
+      <div class="t-box t-run">Thread R3 📖</div><div class="arr">──READ──▶</div>
+      <div class="l-held" style="padding:.4rem 1rem;border-radius:8px">🔓 READ LOCK<br><small style="color:#555">(shared, concurrent)</small></div>
+    </div>
+    <div class="flow">
+      <div class="t-box t-blk">Thread W ✏️</div><div class="arr">──WRITE──▶</div>
+      <div class="l-cont" style="padding:.4rem 1rem;border-radius:8px">🔒 WRITE LOCK<br><small style="color:#aaa">(exclusive, blocks all)</small></div>
+      <span style="font-size:.8rem;color:#c62828">← all readers &amp; writers blocked until write done</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head" style="background:#e8f5e9"><h3>ReentrantReadWriteLock</h3><span class="pkg-lbl">j.u.c.locks</span></div>
+    <div class="card-body">
+      <div class="code"><span class="nm">ReentrantReadWriteLock</span> rwl = <span class="kw">new</span> <span class="nm">ReentrantReadWriteLock</span>();
+<span class="nm">Lock</span> r = rwl.<span class="fn">readLock</span>(), w = rwl.<span class="fn">writeLock</span>();
+
+<span class="cm">// Reader (many at a time)</span>
+r.<span class="fn">lock</span>(); <span class="kw">try</span> { <span class="kw">return</span> data; } <span class="kw">finally</span> { r.<span class="fn">unlock</span>(); }
+
+<span class="cm">// Writer (exclusive)</span>
+w.<span class="fn">lock</span>(); <span class="kw">try</span> { data = newVal; } <span class="kw">finally</span> { w.<span class="fn">unlock</span>(); }</div>
+      <div class="ua-grid">
+        <div class="ua-use"><h4>✅ Use when</h4><ul><li>Read-heavy with occasional writes</li><li>Caches, config stores</li></ul></div>
+        <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Write-heavy (no benefit, extra overhead)</li><li>Write-lock upgrade needed (not supported)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAMPEDLOCK -->
+  <div class="sec-sub">3 · StampedLock — optimistic reads (Java 8+)</div>
+  <div class="diagram">
+    <h3>Three modes — optimistic read is fastest (no lock acquired at all)</h3>
+    <div class="flow" style="gap:.6rem;flex-direction:column;align-items:flex-start">
+      <div class="flow">
+        <div class="t-box t-run" style="width:110px;text-align:center">OPTIMISTIC<br>READ</div>
+        <div class="arr">▶</div><span style="font-size:.8rem">No lock acquired → <strong>validate(stamp)</strong> → if valid: use data &nbsp;|&nbsp; if invalid: fallback to read lock</span>
+      </div>
+      <div class="flow">
+        <div class="t-box t-lock" style="width:110px;text-align:center">READ<br>LOCK</div>
+        <div class="arr">▶</div><span style="font-size:.8rem">Shared read lock — multiple threads allowed, blocks writers</span>
+      </div>
+      <div class="flow">
+        <div class="t-box t-blk" style="width:110px;text-align:center">WRITE<br>LOCK</div>
+        <div class="arr">▶</div><span style="font-size:.8rem">Exclusive — blocks all readers &amp; writers</span>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head" style="background:#fff3e0"><h3>StampedLock</h3><span class="pkg-lbl">j.u.c.locks · non-reentrant!</span></div>
+    <div class="card-body">
+      <div class="code"><span class="nm">StampedLock</span> sl = <span class="kw">new</span> <span class="nm">StampedLock</span>();
+
+<span class="cm">// Optimistic read — best case: zero contention</span>
+<span class="kw">long</span> stamp = sl.<span class="fn">tryOptimisticRead</span>();
+<span class="kw">double</span> x = <span class="kw">this</span>.x, y = <span class="kw">this</span>.y;
+<span class="kw">if</span> (!sl.<span class="fn">validate</span>(stamp)) {          <span class="cm">// writer intervened?</span>
+  stamp = sl.<span class="fn">readLock</span>();
+  <span class="kw">try</span> { x = <span class="kw">this</span>.x; y = <span class="kw">this</span>.y; }
+  <span class="kw">finally</span> { sl.<span class="fn">unlockRead</span>(stamp); }
+}</div>
+      <div class="pill-row">
+        <span class="pill p-green">✓ Highest throughput for reads</span>
+        <span class="pill p-red">✗ Non-reentrant</span>
+        <span class="pill p-red">✗ No Condition support</span>
+        <span class="pill p-orange">⚠ Complex API</span>
+      </div>
+      <div class="ua-grid">
+        <div class="ua-use"><h4>✅ Use when</h4><ul><li>Reads vastly outnumber writes</li><li>Critical hot path needing max throughput</li></ul></div>
+        <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Re-entrant locking is needed</li><li>Condition variables are required</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCK COMPARISON TABLE -->
+  <div class="sec-sub">Lock Comparison at a Glance</div>
+  <table class="cmp-tbl">
+    <thead><tr><th>Lock</th><th>Re-entrant</th><th>Try/Timed</th><th>Interruptible</th><th>Fair Mode</th><th>Condition</th><th>Optimistic Read</th></tr></thead>
+    <tbody>
+      <tr><td><strong>synchronized</strong></td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="par">wait/notify</td><td class="no">✗</td></tr>
+      <tr><td><strong>ReentrantLock</strong></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
+      <tr><td><strong>RW ReadLock</strong></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
+      <tr><td><strong>RW WriteLock</strong></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
+      <tr><td><strong>StampedLock</strong></td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+    </tbody>
+  </table>
+
+  <!-- SYNCHRONIZERS -->
+  <div class="sec-sub">4 · Synchronizers — coordination between threads</div>
+  <div class="card-grid">
+
+    <!-- Semaphore -->
+    <div class="card">
+      <div class="card-head" style="background:#e0f2f1"><h3>🎫 Semaphore</h3><span class="pkg-lbl">j.u.c</span></div>
+      <div class="card-body">
+        <p>Counting semaphore — limits concurrent access to a resource (e.g., connection pool of N slots).</p>
+        <div class="flow">
+          <div class="t-box t-run">T1</div><div class="arr">acquire()▶</div>
+          <div class="l-held" style="padding:.3rem .8rem;border-radius:8px">permits=2<br><small style="color:#555">T1,T2 inside</small></div>
+          <div class="t-box t-wait">T3 waiting</div>
+        </div>
+        <div class="code"><span class="nm">Semaphore</span> sem = <span class="kw">new</span> <span class="nm">Semaphore</span>(<span class="nu">3</span>); <span class="cm">// 3 concurrent</span>
+sem.<span class="fn">acquire</span>();
+<span class="kw">try</span> { useResource(); }
+<span class="kw">finally</span> { sem.<span class="fn">release</span>(); }</div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Connection/thread pool throttling</li><li>Rate limiting</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Simple mutual exclusion (use Lock)</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CountDownLatch -->
+    <div class="card">
+      <div class="card-head" style="background:#fce4ec"><h3>⏬ CountDownLatch</h3><span class="pkg-lbl">j.u.c · one-shot</span></div>
+      <div class="card-body">
+        <p>One or more threads wait until N other threads have completed their work. <strong>Cannot be reset.</strong></p>
+        <div class="tl-wrap">
+          <div class="tl-row"><div class="tl-lbl">Main</div><div class="tl-bar tb-run" style="width:55px">start</div><div class="tl-bar tb-wait" style="width:165px">await() — blocked</div><div class="tl-bar tb-done" style="width:55px">▶ GO</div></div>
+          <div class="tl-row"><div class="tl-lbl">Worker 1</div><div class="tl-bar tb-run" style="width:110px">work…</div><div class="tl-bar tb-done" style="width:55px">countDown</div></div>
+          <div class="tl-row"><div class="tl-lbl">Worker 2</div><div class="tl-bar tb-wait" style="width:55px"></div><div class="tl-bar tb-run" style="width:110px">work…</div><div class="tl-bar tb-done" style="width:55px">countDown</div></div>
+          <div class="tl-row"><div class="tl-lbl">Worker 3</div><div class="tl-bar tb-wait" style="width:110px"></div><div class="tl-bar tb-run" style="width:55px">work</div><div class="tl-bar tb-done" style="width:55px">countDown→0 🔓</div></div>
+        </div>
+        <div class="code"><span class="nm">CountDownLatch</span> latch = <span class="kw">new</span> <span class="nm">CountDownLatch</span>(<span class="nu">3</span>);
+<span class="kw">for</span> (<span class="kw">int</span> i=<span class="nu">0</span>;i&lt;<span class="nu">3</span>;i++) executor.<span class="fn">submit</span>(() -> {
+  doWork(); latch.<span class="fn">countDown</span>();
+});
+latch.<span class="fn">await</span>(); <span class="cm">// main blocked until count=0</span></div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>App startup: wait for all services to init</li><li>Wait for N async results</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Need to reset and reuse (use CyclicBarrier)</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CyclicBarrier -->
+    <div class="card">
+      <div class="card-head" style="background:#e8f5e9"><h3>🔄 CyclicBarrier</h3><span class="pkg-lbl">j.u.c · reusable</span></div>
+      <div class="card-body">
+        <p>N threads each call <code>await()</code>; ALL are released only when all N have arrived. Automatically resets — ideal for multi-phase computation.</p>
+        <div class="flow" style="flex-direction:column;align-items:flex-start;gap:.3rem">
+          <div class="flow"><div class="t-box t-run">T1 ▶ await()</div><div class="t-box t-run">T2 ▶ await()</div><div class="t-box t-wait">T3 waiting…</div></div>
+          <div style="font-size:.8rem;color:#7e8eaf;padding-left:.5rem">all must arrive ↓</div>
+          <div class="flow"><div class="t-box t-lock">T1 ✓</div><div class="t-box t-lock">T2 ✓</div><div class="t-box t-lock">T3 ✓ → BARRIER TRIPPED → all proceed</div></div>
+        </div>
+        <div class="code"><span class="nm">CyclicBarrier</span> barrier = <span class="kw">new</span> <span class="nm">CyclicBarrier</span>(<span class="nu">3</span>, () ->
+  <span class="nm">System</span>.out.<span class="fn">println</span>(<span class="st">"Phase done!"</span>)  <span class="cm">// runs once</span>
+);
+<span class="cm">// Each worker thread:</span>
+doPhase1Work();
+barrier.<span class="fn">await</span>();   <span class="cm">// wait for all peers</span>
+doPhase2Work();
+barrier.<span class="fn">await</span>();   <span class="cm">// barrier auto-reset!</span></div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Parallel computation in phases</li><li>Game loop rounds</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Threads have different roles (use CountDownLatch)</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phaser -->
+    <div class="card">
+      <div class="card-head" style="background:#fff3e0"><h3>📡 Phaser</h3><span class="pkg-lbl">j.u.c · dynamic parties</span></div>
+      <div class="card-body">
+        <p>Flexible, reusable barrier that supports dynamic registration/deregistration of parties and arbitrary multi-phase workflows.</p>
+        <div class="code"><span class="nm">Phaser</span> phaser = <span class="kw">new</span> <span class="nm">Phaser</span>(<span class="nu">1</span>); <span class="cm">// 1=main</span>
+<span class="kw">for</span> (<span class="kw">int</span> i=<span class="nu">0</span>;i&lt;<span class="nu">3</span>;i++) {
+  phaser.<span class="fn">register</span>();          <span class="cm">// add party</span>
+  executor.<span class="fn">submit</span>(() -> {
+    doWork();
+    phaser.<span class="fn">arriveAndDeregister</span>(); <span class="cm">// done</span>
+  });
+}
+phaser.<span class="fn">arriveAndAwaitAdvance</span>(); <span class="cm">// main waits</span></div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Dynamic thread count per phase</li><li>Complex multi-phase pipelines</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Fixed parties and simple sync (CyclicBarrier is simpler)</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Exchanger -->
+    <div class="card">
+      <div class="card-head" style="background:#e8eaf6"><h3>↔️ Exchanger</h3><span class="pkg-lbl">j.u.c</span></div>
+      <div class="card-body">
+        <p>Two threads exchange data at a synchronization point — each hands an object to the other and receives the partner's object.</p>
+        <div class="flow">
+          <div class="t-box t-run">Thread A<br><small>gives "dataA"</small></div>
+          <div class="arr" style="font-size:1.3rem">⇄</div>
+          <div class="t-box t-run">Thread B<br><small>gives "dataB"</small></div>
+        </div>
+        <div class="code"><span class="nm">Exchanger</span>&lt;<span class="nm">List</span>&gt; ex = <span class="kw">new</span> <span class="nm">Exchanger</span>&lt;&gt;();
+<span class="cm">// Thread A (producer fills buffer, then swaps)</span>
+<span class="nm">List</span> full = ex.<span class="fn">exchange</span>(filledBuffer);
+
+<span class="cm">// Thread B (consumer gets full, sends empty back)</span>
+<span class="nm">List</span> empty = ex.<span class="fn">exchange</span>(emptyBuffer);</div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Double-buffer producer/consumer</li><li>Pipeline handoff between exactly 2 threads</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>More than 2 threads involved</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /card-grid -->
+</div>
+</div><!-- /s-locks -->
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 – THREAD POOLS
+═══════════════════════════════════════════ -->
+<div id="s-pools" class="section-page">
+<div class="sec-content" style="--accent:#00695c">
+
+  <div class="sec-hdr">
+    <div class="ico">🏊</div>
+    <div>
+      <h2>Thread Pools &amp; ExecutorService</h2>
+      <p>Creating a raw <code>new Thread()</code> is expensive (~1 MB stack per thread). Thread pools reuse workers, control concurrency, and decouple task submission from execution.</p>
+    </div>
+  </div>
+
+  <!-- Pool Architecture -->
+  <div class="sec-sub">How ThreadPoolExecutor Works</div>
+  <div class="diagram">
+    <h3>Anatomy of a thread pool — tasks flow through three stages</h3>
+    <div class="pool-diag" style="align-items:center">
+      <div class="pd-box pd-tasks">
+        <h4>📥 Submitted Tasks</h4>
+        <div style="font-size:.78rem">task1<br>task2<br>task3<br><span style="color:#bbb">…</span></div>
+      </div>
+      <div class="arr" style="font-size:1.5rem">→</div>
+      <div class="pd-box pd-queue">
+        <h4>📦 Work Queue</h4>
+        <div style="font-size:.78rem">If all core<br>threads busy,<br>tasks queue<br>here</div>
+      </div>
+      <div class="arr" style="font-size:1.5rem">→</div>
+      <div class="pd-box pd-workers">
+        <h4>👷 Worker Threads</h4>
+        <div class="w-grid">
+          <div class="w-cell w-busy">W1 🔥</div>
+          <div class="w-cell w-busy">W2 🔥</div>
+          <div class="w-cell w-busy">W3 🔥</div>
+          <div class="w-cell w-idle">W4 💤</div>
+          <div class="w-cell w-idle">W5 💤</div>
+          <div class="w-cell w-idle">W6 💤</div>
+        </div>
+        <div style="font-size:.71rem;margin-top:.4rem">core=3 | max=6 | idle timeout</div>
+      </div>
+      <div class="arr" style="font-size:1.5rem">→</div>
+      <div class="pd-box pd-results">
+        <h4>📤 Results</h4>
+        <div style="font-size:.78rem">Future&lt;T&gt;<br>callbacks<br>side-effects</div>
+      </div>
+    </div>
+    <div class="info-box" style="margin-top:.8rem">
+      <strong>Key parameters:</strong> <code>corePoolSize</code> (always-alive threads) · <code>maximumPoolSize</code> (burst capacity) · <code>keepAliveTime</code> (idle time before extra threads die) · <code>workQueue</code> · <code>RejectedExecutionHandler</code>
+    </div>
+  </div>
+
+  <div class="sec-sub">Pool Types — Quick Chooser</div>
+  <div class="card-grid">
+
+    <!-- Fixed Thread Pool -->
+    <div class="card">
+      <div class="card-head" style="background:#e3f2fd"><h3>🔢 newFixedThreadPool(n)</h3></div>
+      <div class="card-body">
+        <p>Creates exactly <strong>n</strong> threads that live forever. Unbounded <code>LinkedBlockingQueue</code>. Extra tasks queue until a thread is free.</p>
+        <div class="pool-diag" style="font-size:.77rem;gap:.3rem">
+          <div style="background:#e3f2fd;border:1.5px solid #90caf9;border-radius:6px;padding:.3rem .5rem">Queue: ∞</div>
+          <div class="arr">→</div>
+          <div style="background:#f3e5f5;border:1.5px solid #ba68c8;border-radius:6px;padding:.3rem .5rem">n workers (fixed)</div>
+        </div>
+        <div class="code"><span class="nm">ExecutorService</span> ex =
+  <span class="nm">Executors</span>.<span class="fn">newFixedThreadPool</span>(<span class="nu">4</span>);</div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>CPU-bound tasks (n = CPU cores)</li><li>Predictable concurrency needed</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Task submission rate >> completion rate (unbounded queue → OOM)</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cached Thread Pool -->
+    <div class="card">
+      <div class="card-head" style="background:#e8f5e9"><h3>📈 newCachedThreadPool()</h3></div>
+      <div class="card-body">
+        <p>Creates new threads on demand; reuses idle threads (60 s TTL). Uses <code>SynchronousQueue</code> — zero buffer, direct handoff.</p>
+        <div class="pool-diag" style="font-size:.77rem;gap:.3rem">
+          <div style="background:#e3f2fd;border:1.5px solid #90caf9;border-radius:6px;padding:.3rem .5rem">Queue: 0</div>
+          <div class="arr">→</div>
+          <div style="background:#f3e5f5;border:1.5px solid #ba68c8;border-radius:6px;padding:.3rem .5rem">0 → ∞ workers</div>
+        </div>
+        <div class="code"><span class="nm">ExecutorService</span> ex =
+  <span class="nm">Executors</span>.<span class="fn">newCachedThreadPool</span>();</div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Short-lived async tasks</li><li>I/O-bound tasks, high burst tolerance</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Sustained high load (unbounded threads → OOM)</li><li>CPU-bound tasks</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Single Thread -->
+    <div class="card">
+      <div class="card-head" style="background:#fff8e1"><h3>1️⃣ newSingleThreadExecutor()</h3></div>
+      <div class="card-body">
+        <p>Exactly one thread executing tasks serially. Unbounded queue. Guarantees task ordering (FIFO). Thread is replaced if it dies.</p>
+        <div class="code"><span class="nm">ExecutorService</span> ex =
+  <span class="nm">Executors</span>.<span class="fn">newSingleThreadExecutor</span>();</div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Sequential background work</li><li>Single-writer pattern</li><li>Event loop simulation</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Parallel throughput is required</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scheduled -->
+    <div class="card">
+      <div class="card-head" style="background:#fce4ec"><h3>⏰ newScheduledThreadPool(n)</h3></div>
+      <div class="card-body">
+        <p>Supports delayed and periodic task execution. Uses a <code>DelayedWorkQueue</code> (min-heap). Also: <code>newSingleThreadScheduledExecutor()</code>.</p>
+        <div class="code"><span class="nm">ScheduledExecutorService</span> s =
+  <span class="nm">Executors</span>.<span class="fn">newScheduledThreadPool</span>(<span class="nu">2</span>);
+
+s.<span class="fn">schedule</span>(task, <span class="nu">5</span>, <span class="nm">TimeUnit</span>.SECONDS);
+s.<span class="fn">scheduleAtFixedRate</span>(task, <span class="nu">0</span>, <span class="nu">1</span>, MINUTES);
+s.<span class="fn">scheduleWithFixedDelay</span>(task, <span class="nu">0</span>, <span class="nu">500</span>, MS);</div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Periodic health-checks, polling</li><li>Delayed retries, cron-like jobs</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Full cron semantics needed (use Quartz)</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Work Stealing -->
+    <div class="card">
+      <div class="card-head" style="background:#e8eaf6"><h3>🥷 newWorkStealingPool()</h3></div>
+      <div class="card-body">
+        <p>Backed by a <code>ForkJoinPool</code> with parallelism = CPU cores. Idle threads steal tasks from busy threads' deques. Java 8+.</p>
+        <div class="code"><span class="nm">ExecutorService</span> ex =
+  <span class="nm">Executors</span>.<span class="fn">newWorkStealingPool</span>();
+<span class="cm">// or explicitly:</span>
+<span class="kw">new</span> <span class="nm">ForkJoinPool</span>(<span class="nm">Runtime</span>.<span class="fn">getRuntime</span>()
+  .<span class="fn">availableProcessors</span>());</div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>Many small independent tasks</li><li>Recursive divide-and-conquer</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>Tasks have dependencies / ordering requirements</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Virtual Threads -->
+    <div class="card">
+      <div class="card-head" style="background:#e0f7fa"><h3>🪶 newVirtualThreadPerTaskExecutor() <span style="font-size:.72rem;color:#00695c">Java 21</span></h3></div>
+      <div class="card-body">
+        <p>Creates a <strong>virtual thread</strong> (Project Loom) for every submitted task. Virtual threads are JVM-managed, extremely lightweight (~few KB heap), and can number in the millions.</p>
+        <div class="code"><span class="nm">ExecutorService</span> ex =
+  <span class="nm">Executors</span>.<span class="fn">newVirtualThreadPerTaskExecutor</span>();
+<span class="cm">// or per-task:</span>
+<span class="nm">Thread</span>.<span class="fn">ofVirtual</span>().<span class="fn">start</span>(runnable);</div>
+        <div class="pill-row">
+          <span class="pill p-teal">✓ Millions of threads</span>
+          <span class="pill p-teal">✓ Blocks cheaply (no carrier pinning for I/O)</span>
+          <span class="pill p-orange">⚠ Avoid synchronized + blocking I/O (pins carrier)</span>
+        </div>
+        <div class="ua-grid">
+          <div class="ua-use"><h4>✅ Use when</h4><ul><li>High-concurrency I/O (HTTP, DB, file)</li><li>Replacing thread-per-request model</li></ul></div>
+          <div class="ua-avd"><h4>🚫 Avoid when</h4><ul><li>CPU-bound tasks (no benefit over platform threads)</li><li>Native synchronized blocks inside virtual thread (pin risk)</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /card-grid -->
+
+  <!-- Comparison table -->
+  <div class="sec-sub">Thread Pool Comparison</div>
+  <table class="cmp-tbl">
+    <thead><tr><th>Factory Method</th><th>Core / Max Threads</th><th>Queue</th><th>Best For</th><th>Pitfall</th></tr></thead>
+    <tbody>
+      <tr><td><strong>newFixedThreadPool(n)</strong></td><td>n / n</td><td>Unbounded LinkedBlockingQueue</td><td>CPU-bound, predictable concurrency</td><td>Queue fills → OOM under spike</td></tr>
+      <tr><td><strong>newCachedThreadPool()</strong></td><td>0 / Integer.MAX</td><td>SynchronousQueue (0)</td><td>Short I/O tasks, bursty workloads</td><td>Unbounded threads → OOM</td></tr>
+      <tr><td><strong>newSingleThreadExecutor()</strong></td><td>1 / 1</td><td>Unbounded LinkedBlockingQueue</td><td>Serial background work</td><td>Single point of failure for throughput</td></tr>
+      <tr><td><strong>newScheduledThreadPool(n)</strong></td><td>n / Integer.MAX</td><td>DelayedWorkQueue</td><td>Periodic/delayed tasks</td><td>Long tasks delay subsequent scheduled jobs</td></tr>
+      <tr><td><strong>newWorkStealingPool()</strong></td><td>CPU cores</td><td>Per-thread deque</td><td>Fork/join, many small independent tasks</td><td>Ordering not guaranteed</td></tr>
+      <tr><td><strong>newVirtualThreadPerTaskExecutor()</strong></td><td>per-task (JVM)</td><td>none</td><td>Massive I/O concurrency (Java 21)</td><td>synchronized pinning; CPU-bound no gain</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box">💡 <strong>Custom ThreadPoolExecutor</strong> — For production, always prefer creating a <code>new ThreadPoolExecutor(...)</code> explicitly with bounded queue + explicit <code>RejectedExecutionHandler</code> (e.g., <code>CallerRunsPolicy</code>) instead of the <code>Executors</code> factory shortcuts which hide dangerous defaults.</div>
+
+</div>
+</div><!-- /s-pools -->
+
+<!-- ══════════════════════════════════════════
+     SECTION 4 – COMPLETABLEFUTURE
+═══════════════════════════════════════════ -->
+<div id="s-cf" class="section-page">
+<div class="sec-content" style="--accent:#e65100">
+
+  <div class="sec-hdr">
+    <div class="ico">⚡</div>
+    <div>
+      <h2>CompletableFuture</h2>
+      <p>Introduced in Java 8, <code>CompletableFuture&lt;T&gt;</code> solves the problems of blocking <code>Future.get()</code> and callback hell by providing a composable, non-blocking async pipeline.</p>
+    </div>
+  </div>
+
+  <!-- The Problem -->
+  <div class="sec-sub">The Problem — Why Future&lt;T&gt; Alone Is Not Enough</div>
+  <div class="two-col">
+    <div class="diagram">
+      <h3>❌ Old Way: Future&lt;T&gt;</h3>
+      <div class="code"><span class="nm">Future</span>&lt;<span class="nm">User</span>&gt; fu = executor.<span class="fn">submit</span>(() -> fetchUser());
+<span class="nm">Future</span>&lt;<span class="nm">Order</span>&gt; fo = executor.<span class="fn">submit</span>(() -> fetchOrders());
+
+<span class="nm">User</span> u = fu.<span class="fn">get</span>();    <span class="cm">// 🛑 BLOCKS thread!</span>
+<span class="nm">Order</span> o = fo.<span class="fn">get</span>(); <span class="cm">// 🛑 BLOCKS again</span>
+enrich(u, o);          <span class="cm">// can't pipeline</span></div>
+      <div class="pill-row">
+        <span class="pill p-red">✗ get() blocks the calling thread</span>
+        <span class="pill p-red">✗ No chaining / composition</span>
+        <span class="pill p-red">✗ No exception handling pipeline</span>
+        <span class="pill p-red">✗ No combine multiple futures</span>
+      </div>
+    </div>
+    <div class="diagram">
+      <h3>✅ New Way: CompletableFuture&lt;T&gt;</h3>
+      <div class="code"><span class="nm">CompletableFuture</span>.<span class="fn">supplyAsync</span>(() -> <span class="fn">fetchUser</span>())
+  .<span class="fn">thenCombine</span>(
+    <span class="nm">CompletableFuture</span>.<span class="fn">supplyAsync</span>(() -> <span class="fn">fetchOrders</span>()),
+    (user, orders) -> <span class="fn">enrich</span>(user, orders)
+  )
+  .<span class="fn">thenAccept</span>(result -> <span class="fn">send</span>(result))
+  .<span class="fn">exceptionally</span>(ex -> { <span class="fn">logError</span>(ex); <span class="kw">return null</span>; });</div>
+      <div class="pill-row">
+        <span class="pill p-green">✓ Non-blocking pipeline</span>
+        <span class="pill p-green">✓ Composable stages</span>
+        <span class="pill p-green">✓ Built-in error handling</span>
+        <span class="pill p-green">✓ Combine multiple futures</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pipeline visualization -->
+  <div class="sec-sub">Pipeline Visualization — Stages &amp; Flow</div>
+  <div class="diagram">
+    <h3>Real-world example: fetch user + orders in parallel, combine, then send notification</h3>
+    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start">
+      <div class="cf-pipe" style="min-width:300px">
+        <div class="cf-row">
+          <div class="cf-box cf-sup">supplyAsync(fetchUser)</div>
+          <span class="cf-note">→ runs in ForkJoinPool async</span>
+        </div>
+        <div style="margin-left:1rem;color:#b0bec5;font-size:1rem">↓ thenApply</div>
+        <div class="cf-row">
+          <div class="cf-box cf-apl" style="margin-left:1rem">thenApply(enrich)</div>
+          <span class="cf-note">→ transform User → EnrichedUser</span>
+        </div>
+        <div style="margin-left:2rem;color:#b0bec5;font-size:1rem">↘ thenCombine</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;padding-top:.5rem">
+        <div class="cf-pipe">
+          <div class="cf-row">
+            <div class="cf-box cf-sup">supplyAsync(fetchOrders)</div>
+          </div>
+          <div style="color:#b0bec5;font-size:1rem;margin-left:1rem">↓</div>
+          <div class="cf-row">
+            <div class="cf-box cf-apl" style="margin-left:1rem">thenApply(summarize)</div>
+          </div>
+          <div style="color:#b0bec5;font-size:1rem;margin-left:2rem">↗ (combined above)</div>
+        </div>
+      </div>
+      <div class="cf-pipe" style="padding-top:3rem">
+        <div class="cf-row">
+          <div class="cf-box cf-cmb">thenCombine(user, orders → result)</div>
+        </div>
+        <div style="color:#b0bec5;font-size:1rem;margin-left:1rem">↓</div>
+        <div class="cf-row">
+          <div class="cf-box cf-acc" style="margin-left:1rem">thenAccept(send)</div>
+          <span class="cf-note">→ terminal, no return</span>
+        </div>
+        <div style="color:#b0bec5;font-size:1rem;margin-left:1rem">↓ (on any exception)</div>
+        <div class="cf-row">
+          <div class="cf-box cf-err" style="margin-left:1rem">exceptionally(logError)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Method taxonomy -->
+  <div class="sec-sub">Method Taxonomy — What Each Stage Does</div>
+  <div class="three-col">
+    <div class="card">
+      <div class="card-head" style="background:#e3f2fd"><h3>🚀 Create / Supply</h3></div>
+      <div class="card-body">
+        <div class="code"><span class="cm">// Start async computation</span>
+<span class="nm">CF</span>.<span class="fn">supplyAsync</span>(supplier)
+<span class="nm">CF</span>.<span class="fn">supplyAsync</span>(supplier, executor)
+<span class="nm">CF</span>.<span class="fn">runAsync</span>(runnable)
+
+<span class="cm">// Wrap a known value</span>
+<span class="nm">CF</span>.<span class="fn">completedFuture</span>(value)
+<span class="nm">CF</span>.<span class="fn">failedFuture</span>(ex)</code></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#f3e5f5"><h3>🔀 Transform (1-to-1)</h3></div>
+      <div class="card-body">
+        <div class="code"><span class="cm">// thenApply = map (sync in same thread)</span>
+cf.<span class="fn">thenApply</span>(t -> transform(t))
+cf.<span class="fn">thenApplyAsync</span>(t -> transform(t))
+
+<span class="cm">// thenCompose = flatMap (returns CF&lt;U&gt;)</span>
+cf.<span class="fn">thenCompose</span>(t -> <span class="fn">asyncCall</span>(t))
+
+<span class="cm">// thenRun = fire-and-forget</span>
+cf.<span class="fn">thenRun</span>(() -> log("done"))</code></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#e8f5e9"><h3>🔗 Combine (2 futures)</h3></div>
+      <div class="card-body">
+        <div class="code"><span class="cm">// Both must complete → combine values</span>
+cf1.<span class="fn">thenCombine</span>(cf2, (a,b) -> merge(a,b))
+
+<span class="cm">// Both complete → side effect only</span>
+cf1.<span class="fn">thenAcceptBoth</span>(cf2, (a,b) -> save(a,b))
+
+<span class="cm">// Wait for EITHER — first wins</span>
+cf1.<span class="fn">applyToEither</span>(cf2, t -> transform(t))
+cf1.<span class="fn">acceptEither</span>(cf2, t -> use(t))</code></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#fff3e0"><h3>📋 Collect (N futures)</h3></div>
+      <div class="card-body">
+        <div class="code"><span class="cm">// Wait for ALL to complete</span>
+<span class="nm">CF</span>.<span class="fn">allOf</span>(cf1, cf2, cf3)
+   .<span class="fn">thenRun</span>(() -> process())
+
+<span class="cm">// Complete as soon as ONE finishes</span>
+<span class="nm">CF</span>.<span class="fn">anyOf</span>(cf1, cf2, cf3)
+   .<span class="fn">thenAccept</span>(first -> use(first))</code></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#fce4ec"><h3>🛡️ Error Handling</h3></div>
+      <div class="card-body">
+        <div class="code"><span class="cm">// Recover from exception → provide fallback</span>
+cf.<span class="fn">exceptionally</span>(ex -> fallback)
+
+<span class="cm">// See result OR exception (like finally)</span>
+cf.<span class="fn">handle</span>((t, ex) -> ex != <span class="kw">null</span> ? fallback : t)
+
+<span class="cm">// Side-effect always (doesn't change value)</span>
+cf.<span class="fn">whenComplete</span>((t, ex) -> log(t, ex))</code></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#e0f2f1"><h3>⚙️ Async Variants</h3></div>
+      <div class="card-body">
+        <p style="font-size:.82rem">Every <code>thenXxx</code> has an <code>thenXxxAsync</code> variant that runs the callback in a different thread:</p>
+        <div class="code"><span class="cm">// No suffix → same thread as predecessor</span>
+cf.<span class="fn">thenApply</span>(fn)
+
+<span class="cm">// Async → ForkJoinPool.commonPool()</span>
+cf.<span class="fn">thenApplyAsync</span>(fn)
+
+<span class="cm">// Async → custom executor</span>
+cf.<span class="fn">thenApplyAsync</span>(fn, myExecutor)</code></div>
+        <div class="warn-box" style="margin-top:.5rem;font-size:.79rem">⚠️ Avoid chaining blocking calls without <code>Async</code> — they block the completing thread.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-box">💡 <strong>thenApply vs thenCompose</strong>: Use <code>thenApply(t → U)</code> when the transformation is synchronous. Use <code>thenCompose(t → CF&lt;U&gt;)</code> when the next step is itself async (like another <code>supplyAsync</code>). <code>thenCompose</code> is the <code>flatMap</code> of CompletableFuture and avoids nested <code>CF&lt;CF&lt;T&gt;&gt;</code>.</div>
+
+</div>
+</div><!-- /s-cf -->
+
+<!-- ══════════════════════════════════════════
+     SECTION 5 – FORK / JOIN
+═══════════════════════════════════════════ -->
+<div id="s-fj" class="section-page">
+<div class="sec-content" style="--accent:#1565c0">
+
+  <div class="sec-hdr">
+    <div class="ico">🔱</div>
+    <div>
+      <h2>Fork/Join Framework</h2>
+      <p>Introduced in Java 7, the Fork/Join framework is designed for <strong>divide-and-conquer parallelism</strong>: recursively split a large task into smaller sub-tasks, execute them in parallel, then merge the results.</p>
+    </div>
+  </div>
+
+  <!-- Core concepts -->
+  <div class="sec-sub">Core Concepts</div>
+  <div class="three-col">
+    <div class="card">
+      <div class="card-head" style="background:#e3f2fd"><h3>🏗️ ForkJoinPool</h3></div>
+      <div class="card-body">
+        <p>Specialized thread pool that uses <strong>work-stealing</strong>. Default: <code>ForkJoinPool.commonPool()</code> (parallelism = CPU cores − 1).</p>
+        <div class="code"><span class="nm">ForkJoinPool</span> pool = <span class="nm">ForkJoinPool</span>.<span class="fn">commonPool</span>();
+<span class="cm">// or custom parallelism:</span>
+<span class="nm">ForkJoinPool</span> pool = <span class="kw">new</span> <span class="nm">ForkJoinPool</span>(<span class="nu">4</span>);</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#f3e5f5"><h3>📊 RecursiveTask&lt;T&gt;</h3></div>
+      <div class="card-body">
+        <p>A task that <strong>returns a value</strong>. Override <code>compute()</code> to fork sub-tasks and join their results.</p>
+        <div class="code"><span class="kw">class</span> <span class="nm">SumTask</span> <span class="kw">extends</span> <span class="nm">RecursiveTask</span>&lt;<span class="nm">Long</span>&gt; {
+  <span class="ann">@Override</span>
+  <span class="kw">protected</span> <span class="nm">Long</span> <span class="fn">compute</span>() {
+    <span class="kw">if</span> (size &lt;= THRESHOLD) <span class="kw">return</span> <span class="fn">sumDirect</span>();
+    <span class="nm">SumTask</span> left = <span class="kw">new</span> <span class="nm">SumTask</span>(lo, mid);
+    <span class="nm">SumTask</span> right = <span class="kw">new</span> <span class="nm">SumTask</span>(mid, hi);
+    left.<span class="fn">fork</span>();           <span class="cm">// async submit left</span>
+    <span class="kw">return</span> right.<span class="fn">compute</span>()  <span class="cm">// run right inline</span>
+         + left.<span class="fn">join</span>();    <span class="cm">// wait for left</span>
+  }
+}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#e8f5e9"><h3>🔧 RecursiveAction</h3></div>
+      <div class="card-body">
+        <p>A task that <strong>returns void</strong>. Used for side-effect operations like filling, sorting, or updating arrays in place.</p>
+        <div class="code"><span class="kw">class</span> <span class="nm">FillAction</span> <span class="kw">extends</span> <span class="nm">RecursiveAction</span> {
+  <span class="ann">@Override</span>
+  <span class="kw">protected void</span> <span class="fn">compute</span>() {
+    <span class="kw">if</span> (size &lt;= THRESHOLD) {
+      <span class="nm">Arrays</span>.<span class="fn">fill</span>(arr, lo, hi, value); <span class="kw">return</span>;
+    }
+    <span class="nm">FillAction</span> left  = <span class="kw">new</span> <span class="nm">FillAction</span>(lo, mid);
+    <span class="nm">FillAction</span> right = <span class="kw">new</span> <span class="nm">FillAction</span>(mid, hi);
+    <span class="fn">invokeAll</span>(left, right); <span class="cm">// fork+join both</span>
+  }
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decomposition Tree -->
+  <div class="sec-sub">Decomposition Tree — Parallel Sum of array [1..8]</div>
+  <div class="diagram">
+    <h3>Task splits recursively until it hits the threshold (≤ 2 elements), then merges results bottom-up</h3>
+    <div class="fj-tree">
+      <!-- Level 0: Root -->
+      <div class="fj-level">
+        <div class="fj-node">
+          <div class="fj-box fj-root">sum(1..8) = 36</div>
+          <div class="fj-con"></div>
+        </div>
+      </div>
+      <!-- Horizontal split line -->
+      <div style="display:flex;width:420px;justify-content:space-around">
+        <div style="width:50%;border-top:2px solid #b0bec5;border-right:2px solid #b0bec5;height:14px"></div>
+        <div style="width:50%;border-top:2px solid #b0bec5;border-left:2px solid #b0bec5;height:14px"></div>
+      </div>
+      <!-- Level 1 -->
+      <div class="fj-level" style="gap:4rem">
+        <div class="fj-node">
+          <div class="fj-box fj-fork">sum(1..4) = 10</div>
+          <div class="fj-con"></div>
+        </div>
+        <div class="fj-node">
+          <div class="fj-box fj-fork">sum(5..8) = 26</div>
+          <div class="fj-con"></div>
+        </div>
+      </div>
+      <!-- Split lines L1 -->
+      <div style="display:flex;width:600px;justify-content:space-around">
+        <div style="width:25%;border-top:2px solid #b0bec5;border-right:2px solid #b0bec5;height:14px"></div>
+        <div style="width:25%;border-top:2px solid #b0bec5;border-left:2px solid #b0bec5;height:14px"></div>
+        <div style="width:25%;border-top:2px solid #b0bec5;border-right:2px solid #b0bec5;height:14px"></div>
+        <div style="width:25%;border-top:2px solid #b0bec5;border-left:2px solid #b0bec5;height:14px"></div>
+      </div>
+      <!-- Level 2: Leaves -->
+      <div class="fj-level" style="gap:1.5rem">
+        <div class="fj-node"><div class="fj-box fj-leaf">sum(1,2)=3</div></div>
+        <div class="fj-node"><div class="fj-box fj-leaf">sum(3,4)=7</div></div>
+        <div class="fj-node"><div class="fj-box fj-leaf">sum(5,6)=11</div></div>
+        <div class="fj-node"><div class="fj-box fj-leaf">sum(7,8)=15</div></div>
+      </div>
+      <div style="font-size:.8rem;color:#7e8eaf;margin-top:.6rem">↑ Leaf tasks execute on separate CPU cores simultaneously → results bubble up via join()</div>
+    </div>
+    <div class="success-box" style="margin-top:.8rem">Key pattern: always <strong>fork()</strong> the left sub-task (pushes it to the thread's deque), then <strong>compute()</strong> the right inline (reuses current thread), then <strong>join()</strong> the left. This avoids creating an unnecessary thread switch.</div>
+  </div>
+
+  <!-- Full RecursiveTask Example -->
+  <div class="sec-sub">Full Example — Parallel Sum with RecursiveTask</div>
+  <div class="two-col">
+    <div class="diagram">
+      <h3>RecursiveTask&lt;Long&gt; — returns sum</h3>
+      <div class="code"><span class="kw">import</span> java.util.concurrent.*;
+
+<span class="kw">class</span> <span class="nm">ParallelSum</span> <span class="kw">extends</span> <span class="nm">RecursiveTask</span>&lt;<span class="nm">Long</span>&gt; {
+  <span class="kw">static final int</span> THRESHOLD = <span class="nu">1000</span>;
+  <span class="kw">private final int</span>[] arr;
+  <span class="kw">private final int</span> lo, hi;
+
+  <span class="nm">ParallelSum</span>(<span class="kw">int</span>[] arr, <span class="kw">int</span> lo, <span class="kw">int</span> hi) {
+    <span class="kw">this</span>.arr=arr; <span class="kw">this</span>.lo=lo; <span class="kw">this</span>.hi=hi;
+  }
+
+  <span class="ann">@Override</span>
+  <span class="kw">protected</span> <span class="nm">Long</span> <span class="fn">compute</span>() {
+    <span class="kw">if</span> (hi - lo &lt;= THRESHOLD) {     <span class="cm">// base case</span>
+      <span class="kw">long</span> sum = <span class="nu">0</span>;
+      <span class="kw">for</span> (<span class="kw">int</span> i=lo; i&lt;hi; i++) sum += arr[i];
+      <span class="kw">return</span> sum;
+    }
+    <span class="kw">int</span> mid = (lo + hi) / <span class="nu">2</span>;
+    <span class="nm">ParallelSum</span> left  = <span class="kw">new</span> <span class="nm">ParallelSum</span>(arr, lo,  mid);
+    <span class="nm">ParallelSum</span> right = <span class="kw">new</span> <span class="nm">ParallelSum</span>(arr, mid, hi);
+    left.<span class="fn">fork</span>();                      <span class="cm">// async</span>
+    <span class="kw">long</span> rightResult = right.<span class="fn">compute</span>(); <span class="cm">// sync</span>
+    <span class="kw">return</span> rightResult + left.<span class="fn">join</span>(); <span class="cm">// merge</span>
+  }
+
+  <span class="kw">public static void</span> <span class="fn">main</span>(<span class="nm">String</span>[] args) {
+    <span class="kw">int</span>[] data = <span class="kw">new int</span>[<span class="nu">10_000_000</span>];
+    <span class="nm">Arrays</span>.<span class="fn">fill</span>(data, <span class="nu">1</span>);
+    <span class="nm">ForkJoinPool</span> pool = <span class="nm">ForkJoinPool</span>.<span class="fn">commonPool</span>();
+    <span class="kw">long</span> total = pool.<span class="fn">invoke</span>(<span class="kw">new</span> <span class="nm">ParallelSum</span>(data,<span class="nu">0</span>,data.length));
+    <span class="cm">// total == 10_000_000</span>
+  }
+}</div>
+    </div>
+    <div class="diagram">
+      <h3>RecursiveAction — parallel array fill (no return)</h3>
+      <div class="code"><span class="kw">class</span> <span class="nm">ParallelFill</span> <span class="kw">extends</span> <span class="nm">RecursiveAction</span> {
+  <span class="kw">static final int</span> THRESHOLD = <span class="nu">500</span>;
+  <span class="kw">private final int</span>[] arr;
+  <span class="kw">private final int</span> lo, hi, val;
+
+  <span class="nm">ParallelFill</span>(<span class="kw">int</span>[] arr, <span class="kw">int</span> lo, <span class="kw">int</span> hi, <span class="kw">int</span> val) {
+    <span class="kw">this</span>.arr=arr; <span class="kw">this</span>.lo=lo; <span class="kw">this</span>.hi=hi; <span class="kw">this</span>.val=val;
+  }
+
+  <span class="ann">@Override</span>
+  <span class="kw">protected void</span> <span class="fn">compute</span>() {
+    <span class="kw">if</span> (hi - lo &lt;= THRESHOLD) {
+      <span class="nm">Arrays</span>.<span class="fn">fill</span>(arr, lo, hi, val); <span class="kw">return</span>;
+    }
+    <span class="kw">int</span> mid = (lo + hi) / <span class="nu">2</span>;
+    <span class="fn">invokeAll</span>(
+      <span class="kw">new</span> <span class="nm">ParallelFill</span>(arr, lo,  mid, val),
+      <span class="kw">new</span> <span class="nm">ParallelFill</span>(arr, mid, hi,  val)
+    ); <span class="cm">// forks both, waits for both</span>
+  }
+}
+
+<span class="cm">// Usage:</span>
+<span class="kw">int</span>[] data = <span class="kw">new int</span>[<span class="nu">1_000_000</span>];
+<span class="nm">ForkJoinPool</span>.<span class="fn">commonPool</span>()
+  .<span class="fn">invoke</span>(<span class="kw">new</span> <span class="nm">ParallelFill</span>(data, <span class="nu">0</span>, data.length, <span class="nu">42</span>));</div>
+    </div>
+  </div>
+
+  <!-- Work-Stealing -->
+  <div class="sec-sub">Work-Stealing — How ForkJoinPool Maximises CPU Utilisation</div>
+  <div class="diagram">
+    <h3>Each thread has its own deque; idle threads steal from the TAIL of busy threads' deques</h3>
+    <div class="ws-wrap">
+      <div class="ws-th">
+        <h4>🧵 Thread-1 (busy)</h4>
+        <div class="ws-q">
+          <div class="ws-t run">T1 ▶ running</div>
+          <div class="ws-t pend">T3 pending</div>
+          <div class="ws-t pend">T5 pending</div>
+          <div class="ws-t pend">T7 pending ← TAIL</div>
+        </div>
+      </div>
+      <div class="ws-steal">⟵ steal</div>
+      <div class="ws-th">
+        <h4>🧵 Thread-2 (idle)</h4>
+        <div class="ws-q">
+          <div class="ws-t empty">(empty deque)</div>
+          <div class="ws-t stolen">T7 stolen! ▶</div>
+        </div>
+      </div>
+      <div class="ws-steal" style="color:#aaa">——</div>
+      <div class="ws-th">
+        <h4>🧵 Thread-3 (busy)</h4>
+        <div class="ws-q">
+          <div class="ws-t run">T2 ▶ running</div>
+          <div class="ws-t pend">T4 pending</div>
+          <div class="ws-t pend">T6 pending</div>
+        </div>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>Head vs Tail:</strong> Each thread pushes/pops from its own deque's <em>HEAD</em> (LIFO — maintains locality). Thieves steal from the <em>TAIL</em> (FIFO — take oldest, coarser work), minimising synchronisation contention between owner and thief.
+    </div>
+  </div>
+
+  <!-- When to use -->
+  <div class="sec-sub">When to Use vs Avoid</div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head" style="background:#e8f5e9"><h3>✅ Good Fit for Fork/Join</h3></div>
+      <div class="card-body">
+        <ul style="padding-left:1.1rem;font-size:.87rem;line-height:1.9">
+          <li><strong>CPU-bound recursive algorithms</strong> — merge sort, quicksort, matrix multiply</li>
+          <li><strong>Large array/collection processing</strong> — parallel sum, max, filter</li>
+          <li>Tasks that <strong>naturally decompose</strong> into independent sub-tasks</li>
+          <li>When sub-task granularity can be tuned via a <strong>threshold</strong></li>
+          <li><code>Arrays.parallelSort()</code>, <code>Stream.parallel()</code> use it internally</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head" style="background:#fbe9e7"><h3>🚫 Poor Fit for Fork/Join</h3></div>
+      <div class="card-body">
+        <ul style="padding-left:1.1rem;font-size:.87rem;line-height:1.9">
+          <li><strong>I/O-bound tasks</strong> — threads block waiting → no CPU to steal (use virtual threads)</li>
+          <li>Tasks with <strong>shared mutable state</strong> between sub-tasks</li>
+          <li><strong>Tasks that can't be split</strong> into independent units</li>
+          <li>When tasks are <strong>few and large</strong> — no benefit from splitting</li>
+          <li>When <code>synchronized</code> or blocking locks are used inside tasks (prevents work-stealing)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="warn-box">💡 <strong>Threshold Tuning</strong>: If the threshold is too small, the overhead of creating/joining tasks dominates. Too large, and you lose parallelism. A common starting point is <strong>array.length / (4 × availableProcessors)</strong>. Always benchmark with your specific workload and JVM flags.</div>
+
+</div>
+</div><!-- /s-fj -->
+
+<footer style="text-align:center; padding:1.2rem; font-size:.78rem; color:#8a94b0; border-top:1px solid #dde3ed; background:#fff; margin-top:1rem;">
+  † Amortized O(1) average; worst-case degrades on hash collisions or resize. &nbsp;|&nbsp;
+  * O(1) given an iterator at the node. &nbsp;|&nbsp;
+  Java 21 &nbsp;·&nbsp; java.util &amp; java.util.concurrent
+</footer>
+
+<script>
+  function showSection(id, btn) {
+    document.querySelectorAll('.section-page').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.main-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function filterTable(cat, btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('#main-table tbody tr[data-cat]').forEach(row => {
+      const rowCat = row.getAttribute('data-cat');
+      const rowTs  = row.getAttribute('data-ts');
+      let show = false;
+      if (cat === 'all')       show = true;
+      else if (cat === 'ts')   show = (rowTs === 'ts' || rowTs === 'leg');
+      else if (cat === 'nts')  show = (rowTs === 'nts');
+      else                     show = (rowCat === cat);
+      row.classList.toggle('hidden', !show);
+    });
+    document.querySelectorAll('#main-table tbody tr.section-header').forEach(header => {
+      if (cat === 'all') { header.classList.remove('hidden'); return; }
+      let hasVisible = false;
+      let sibling = header.nextElementSibling;
+      while (sibling && !sibling.classList.contains('section-header')) {
+        if (!sibling.classList.contains('hidden')) { hasVisible = true; break; }
+        sibling = sibling.nextElementSibling;
+      }
+      header.classList.toggle('hidden', !hasVisible);
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Large CSV Processing — Techniques Guide</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+    background: #f7f8fc;
+    color: #1e2235;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  a { color: #3b5bdb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Top nav bar ──────────────────────────────────────── */
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid #e2e6f0;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06);
+  }
+
+  .topbar .logo {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #3b5bdb;
+    letter-spacing: -.3px;
+  }
+
+  .topbar .badge {
+    background: #eef2ff;
+    color: #3b5bdb;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    letter-spacing: .04em;
+  }
+
+  /* ── Hero banner ──────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, #3b5bdb 0%, #1971c2 55%, #0c8599 100%);
+    color: #fff;
+    text-align: center;
+    padding: 72px 24px 64px;
+  }
+
+  .hero h1 {
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin-bottom: 14px;
+    line-height: 1.2;
+  }
+
+  .hero p {
+    font-size: 1.05rem;
+    opacity: .9;
+    max-width: 620px;
+    margin: 0 auto 28px;
+  }
+
+  .hero-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .hero-tag {
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: .8rem;
+    font-weight: 600;
+  }
+
+  /* ── Layout ───────────────────────────────────────────── */
+  .page-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* ── Sidebar TOC ──────────────────────────────────────── */
+  .toc {
+    position: sticky;
+    top: 72px;
+    background: #fff;
+    border: 1px solid #e2e6f0;
+    border-radius: 12px;
+    padding: 20px 18px;
+  }
+
+  .toc h3 {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #8892a4;
+    margin-bottom: 14px;
+  }
+
+  .toc ol {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    counter-reset: toc-counter;
+  }
+
+  .toc li {
+    counter-increment: toc-counter;
+  }
+
+  .toc a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: .85rem;
+    color: #3a4060;
+    transition: background .15s, color .15s;
+  }
+
+  .toc a::before {
+    content: counter(toc-counter);
+    background: #eef2ff;
+    color: #3b5bdb;
+    font-size: .72rem;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .toc a:hover { background: #f0f4ff; color: #3b5bdb; text-decoration: none; }
+
+  .toc-divider {
+    border: none;
+    border-top: 1px solid #eaecf4;
+    margin: 14px 0;
+  }
+
+  .toc-meta {
+    font-size: .78rem;
+    color: #8892a4;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .toc-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* ── Content area ─────────────────────────────────────── */
+  .content { min-width: 0; }
+
+  /* ── Section intro card ───────────────────────────────── */
+  .intro-card {
+    background: #fff;
+    border: 1px solid #e2e6f0;
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin-bottom: 36px;
+  }
+
+  .intro-card h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #1e2235;
+  }
+
+  .intro-card p { color: #4a5270; }
+
+  /* ── Memory budget table ──────────────────────────────── */
+  .budget-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+    margin-top: 18px;
+  }
+
+  .budget-table th {
+    background: #f0f4ff;
+    color: #3b5bdb;
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 2px solid #c5d0f8;
+  }
+
+  .budget-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #eaecf4;
+    color: #3a4060;
+  }
+
+  .budget-table tr:last-child td { border-bottom: none; }
+  .budget-table tr:nth-child(even) td { background: #f8f9fe; }
+
+  .budget-table .total td {
+    font-weight: 700;
+    background: #eef2ff;
+    color: #1e2235;
+    border-top: 2px solid #c5d0f8;
+  }
+
+  /* ── Technique cards ──────────────────────────────────── */
+  .technique-card {
+    background: #fff;
+    border: 1px solid #e2e6f0;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    transition: box-shadow .2s;
+  }
+
+  .technique-card:hover { box-shadow: 0 4px 20px rgba(59,91,219,.08); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 22px 28px;
+    border-bottom: 1px solid #eaecf4;
+  }
+
+  .card-num {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .card-header h2 {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #1e2235;
+    margin-bottom: 2px;
+  }
+
+  .card-header .subtitle {
+    font-size: .82rem;
+    color: #8892a4;
+  }
+
+  .card-body { padding: 24px 28px; }
+
+  .card-body p { color: #4a5270; margin-bottom: 14px; }
+  .card-body p:last-child { margin-bottom: 0; }
+
+  /* ── Problem / Solution callouts ─────────────────────── */
+  .callout {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: .88rem;
+  }
+
+  .callout.problem {
+    background: #fff5f5;
+    border-left: 4px solid #fa5252;
+    color: #7b2020;
+  }
+
+  .callout.solution {
+    background: #f0fff4;
+    border-left: 4px solid #40c057;
+    color: #1a4d28;
+  }
+
+  .callout.info {
+    background: #f0f4ff;
+    border-left: 4px solid #3b5bdb;
+    color: #1e2d6b;
+  }
+
+  .callout strong { display: block; margin-bottom: 4px; font-size: .8rem;
+    text-transform: uppercase; letter-spacing: .05em; opacity: .7; }
+
+  /* ── Code blocks ──────────────────────────────────────── */
+  .code-wrap {
+    background: #1e2235;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 18px 0;
+    font-size: .82rem;
+  }
+
+  .code-title {
+    background: #2a2f4a;
+    color: #8892a4;
+    padding: 8px 16px;
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .code-title .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #40c057;
+    flex-shrink: 0;
+  }
+
+  pre {
+    padding: 18px 20px;
+    overflow-x: auto;
+    color: #cdd8ff;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* Syntax-like colours applied via span */
+  .kw  { color: #7c9fe8; }   /* keywords */
+  .an  { color: #f7b731; }   /* annotations */
+  .cls { color: #63e6be; }   /* class/type names */
+  .str { color: #a9e34b; }   /* strings */
+  .cmt { color: #636e8c; font-style: italic; }  /* comments */
+  .num { color: #fa8231; }   /* numbers */
+
+  /* ── Comparison table ─────────────────────────────────── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 16px 0;
+  }
+
+  .compare-box {
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: .85rem;
+  }
+
+  .compare-box.bad  { background: #fff5f5; border: 1px solid #ffa8a8; }
+  .compare-box.good { background: #f0fff4; border: 1px solid #8ce99a; }
+
+  .compare-box h4 {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: 8px;
+  }
+
+  .compare-box.bad  h4 { color: #c92a2a; }
+  .compare-box.good h4 { color: #2f9e44; }
+
+  .compare-box p { color: #3a4060; margin: 0; font-size: .85rem; }
+
+  /* ── Metric pills ─────────────────────────────────────── */
+  .metrics-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .metric-pill {
+    background: #f0f4ff;
+    border: 1px solid #c5d0f8;
+    border-radius: 8px;
+    padding: 10px 16px;
+    text-align: center;
+    min-width: 110px;
+  }
+
+  .metric-pill .val {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #3b5bdb;
+    display: block;
+  }
+
+  .metric-pill .lbl {
+    font-size: .72rem;
+    color: #8892a4;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  /* ── Step list ────────────────────────────────────────── */
+  .steps { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+
+  .steps li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: .88rem;
+    color: #3a4060;
+  }
+
+  .step-num {
+    width: 24px; height: 24px;
+    background: #3b5bdb;
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Colour themes per card ───────────────────────────── */
+  .t1 .card-num { background:#eef2ff; color:#3b5bdb; }
+  .t2 .card-num { background:#fff0f6; color:#c2255c; }
+  .t3 .card-num { background:#f0fff4; color:#2f9e44; }
+  .t4 .card-num { background:#fff9db; color:#e67700; }
+  .t5 .card-num { background:#f3f0ff; color:#7048e8; }
+
+  .t1 .card-header { border-left: 4px solid #3b5bdb; }
+  .t2 .card-header { border-left: 4px solid #c2255c; }
+  .t3 .card-header { border-left: 4px solid #2f9e44; }
+  .t4 .card-header { border-left: 4px solid #e67700; }
+  .t5 .card-header { border-left: 4px solid #7048e8; }
+
+  /* ── Footer ───────────────────────────────────────────── */
+  footer {
+    text-align: center;
+    font-size: .82rem;
+    color: #8892a4;
+    border-top: 1px solid #e2e6f0;
+    padding: 24px;
+    background: #fff;
+  }
+
+  /* ── Responsive ───────────────────────────────────────── */
+  @media (max-width: 780px) {
+    .page-wrap { grid-template-columns: 1fr; }
+    .toc { position: static; }
+    .hero h1 { font-size: 1.7rem; }
+    .compare { grid-template-columns: 1fr; }
+    .card-header { padding: 16px 20px; }
+    .card-body { padding: 18px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ TOP NAR ══════════════════ -->
+<nav class="topbar">
+  <span class="logo">☕ Spring Boot</span>
+  <span class="badge">LARGE CSV GUIDE</span>
+</nav>
+
+<!-- ══════════════════ HERO ══════════════════ -->
+<header class="hero">
+  <h1>Large CSV Processing<br>Under a 500 MB Heap</h1>
+  <p>Five production-grade techniques that let Spring Boot process
+     tens of millions of CSV rows — upsert-safe, memory-flat, observable —
+     without ever exceeding a 512 MB JVM heap cap.</p>
+  <div class="hero-tags">
+    <span class="hero-tag">Spring Boot 3</span>
+    <span class="hero-tag">OpenCSV</span>
+    <span class="hero-tag">Hibernate / JPA</span>
+    <span class="hero-tag">SQLite</span>
+    <span class="hero-tag">G1GC</span>
+    <span class="hero-tag">Async Processing</span>
+    <span class="hero-tag">Batch Upsert</span>
+  </div>
+</header>
+
+<!-- ══════════════════ MAIN LAYOUT ══════════════════ -->
+<div class="page-wrap">
+
+  <!-- ── Sidebar TOC ── -->
+  <aside class="toc">
+    <h3>Techniques</h3>
+    <ol>
+      <li><a href="#t1">Streaming CSV Parse</a></li>
+      <li><a href="#t2">Projection Upsert Lookup</a></li>
+      <li><a href="#t3">EntityManager flush + clear</a></li>
+      <li><a href="#t4">Batch Size 500</a></li>
+      <li><a href="#t5">Heap Telemetry</a></li>
+    </ol>
+    <hr class="toc-divider"/>
+    <div class="toc-meta">
+      <span>📦 Spring Boot 3.3</span>
+      <span>☕ Java 21</span>
+      <span>🗄️ SQLite (WAL)</span>
+      <span>🔒 512 MB Xmx</span>
+    </div>
+  </aside>
+
+  <!-- ── Content ── -->
+  <main class="content">
+
+    <!-- INTRO -->
+    <div class="intro-card">
+      <h2>Why these techniques matter</h2>
+      <p>
+        Uploading a file is easy. Processing <strong>10 million rows</strong> without
+        running out of memory, without creating duplicate records on re-upload, and without
+        bringing the server to its knees is the hard part. Each technique below targets
+        a specific failure mode — together they keep heap usage <strong>flat at ~200 MB</strong>
+        regardless of how many rows are in the file.
+      </p>
+
+      <table class="budget-table" style="margin-top:18px">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Heap Used</th>
+            <th>Fixed / Per-Batch</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Spring Boot + Tomcat + Hibernate metamodel</td><td>~110 MB</td><td>Fixed</td></tr>
+          <tr><td>Active batch (500 Customer objects)</td><td>~0.2 MB</td><td>Per-batch, released after clear()</td></tr>
+          <tr><td>Projection lookup (500 proxies)</td><td>~0.1 MB</td><td>Per-batch, released after TX</td></tr>
+          <tr><td>OpenCSV + BufferedReader (128 KB)</td><td>~0.5 MB</td><td>Fixed</td></tr>
+          <tr><td>SQLite JDBC result buffers</td><td>~5 MB</td><td>Fixed</td></tr>
+          <tr><td>GC headroom</td><td>~100 MB</td><td>Reserved</td></tr>
+          <tr class="total"><td>Total peak</td><td>~216 MB</td><td>✅ Well under 512 MB</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ TECHNIQUE 1 ══ -->
+    <section class="technique-card t1" id="t1">
+      <div class="card-header">
+        <div class="card-num">1</div>
+        <div>
+          <h2>Streaming CSV Parse</h2>
+          <span class="subtitle">128 KB BufferedReader · OpenCSV · file stays on disk</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="callout problem">
+          <strong>❌ Problem</strong>
+          If you call <code>file.getBytes()</code> or load the whole CSV into a
+          <code>String</code>, an 800 MB file puts 800 MB on the heap — instant
+          <code>OutOfMemoryError</code>.
+        </div>
+
+        <p>
+          Spring's multipart resolver streams the upload to a <strong>temp file on disk</strong>
+          (controlled by <code>file-size-threshold=1MB</code> in <code>application.properties</code>).
+          The raw <code>InputStream</code> from <code>MultipartFile.getInputStream()</code>
+          reads from that temp file — meaning at most a few KB of CSV data are decoded in
+          the JVM heap at any moment.
+        </p>
+
+        <div class="callout solution">
+          <strong>✅ Solution</strong>
+          Wrap the stream in a 128 KB <code>BufferedReader</code>, feed it to OpenCSV's
+          <code>CSVReaderBuilder</code> with <code>withSkipLines(1)</code> to drop the header.
+          Only the <em>current line</em> is ever decoded in memory.
+        </div>
+
+        <!-- ── Deep-dive: file-size-threshold ── -->
+        <h3 style="font-size:.95rem;font-weight:700;color:#1e2235;margin:24px 0 10px;">
+          🔍 Deep-dive: <code>spring.servlet.multipart.file-size-threshold</code>
+        </h3>
+
+        <p>
+          Spring Boot's multipart support is backed by either
+          <strong>Apache Commons FileUpload</strong> (Servlet 3 mode) or the
+          <strong>Servlet 3.0 Part API</strong> (default in Spring Boot 3).
+          Both share the same threshold concept: incoming bytes are held in a
+          <em>memory buffer</em> until the threshold is crossed, at which point the
+          remainder is spooled to a <strong>temporary file on disk</strong>.
+          The property that controls this boundary is:
+        </p>
+
+        <div class="callout info">
+          <strong>ℹ️ How the threshold works</strong>
+          <code>spring.servlet.multipart.file-size-threshold</code> sets the number of bytes
+          that can sit in JVM heap before Spring switches to disk.
+          <br/><br/>
+          <strong>Default value: <code>0B</code></strong> (zero bytes) — meaning Spring
+          writes to a temp file <em>immediately</em> for every upload, regardless of size.
+          <br/><br/>
+          If you set it to <code>10MB</code>, files smaller than 10 MB are kept in a
+          <code>byte[]</code> in memory; files larger are spooled to disk once 10 MB have
+          been buffered. <strong>For large CSV processing, always keep this at
+          <code>0B</code> or <code>1B</code></strong> so even tiny files go straight to
+          disk and you can stream from the very first byte.
+        </div>
+
+        <table class="budget-table" style="margin: 16px 0 20px;">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>What it controls</th>
+              <th>Recommended value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>file-size-threshold</code></td>
+              <td>Bytes buffered in heap before spooling to temp file</td>
+              <td><code>0B</code> or <code>1B</code> — never buffer in memory</td>
+            </tr>
+            <tr>
+              <td><code>max-file-size</code></td>
+              <td>Maximum size of a single uploaded file (hard reject above this)</td>
+              <td><code>2048MB</code> (or as large as you accept)</td>
+            </tr>
+            <tr>
+              <td><code>max-request-size</code></td>
+              <td>Maximum size of the entire multipart request (all parts combined)</td>
+              <td><code>2048MB</code> (match or exceed <code>max-file-size</code>)</td>
+            </tr>
+            <tr>
+              <td><code>location</code></td>
+              <td>Directory for temp files when spooled to disk</td>
+              <td>Fast local SSD path, e.g. <code>/tmp/uploads</code></td>
+            </tr>
+            <tr>
+              <td><code>enabled</code></td>
+              <td>Enables Spring's multipart resolver (must be <code>true</code>)</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>
+          When the threshold is set to <code>0B</code>, here is exactly what happens
+          inside Tomcat / Spring when a file upload arrives:
+        </p>
+
+        <ul class="steps">
+          <li>
+            <span class="step-num">1</span>
+            <span>The HTTP request body arrives over the socket. Tomcat reads it in
+            8 KB chunks into a small <strong>socket receive buffer</strong> — this is OS-level,
+            not JVM heap.</span>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <span>Because <code>file-size-threshold=0B</code>, Tomcat's
+            <code>DiskFileItem</code> immediately opens a
+            <strong>temp file</strong> (in <code>java.io.tmpdir</code> or the configured
+            <code>location</code>) and writes every incoming chunk straight to disk.
+            <strong>No byte array is allocated on the JVM heap for the file content.</strong></span>
+          </li>
+          <li>
+            <span class="step-num">3</span>
+            <span>Your controller receives a <code>MultipartFile</code>. When you call
+            <code>getInputStream()</code>, Spring returns a
+            <code>FileInputStream</code> backed by that temp file on disk — not a
+            <code>ByteArrayInputStream</code> from memory.</span>
+          </li>
+          <li>
+            <span class="step-num">4</span>
+            <span>You wrap that stream in a <code>BufferedReader</code> with a 128 KB
+            buffer. Only 128 KB of file data resides on the JVM heap at any instant —
+            regardless of whether the file is 1 MB or 10 GB.</span>
+          </li>
+          <li>
+            <span class="step-num">5</span>
+            <span>When the request ends, Spring calls
+            <code>MultipartFile.transferTo()</code> cleanup or the servlet container
+            deletes the temp file automatically.</span>
+          </li>
+        </ul>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>application.properties — full multipart configuration</div>
+<pre><span class="cmt"># ── Multipart / file-upload settings ──────────────────────────────────────</span>
+
+<span class="cmt"># CRITICAL: set to 0B so Spring never buffers ANY part of the file in heap.</span>
+<span class="cmt"># Default is 0B in Spring Boot 3, but make it explicit.</span>
+<span class="str">spring.servlet.multipart.file-size-threshold=0B</span>
+
+<span class="cmt"># Maximum size for a single uploaded file (HTTP 413 if exceeded)</span>
+<span class="str">spring.servlet.multipart.max-file-size=2048MB</span>
+
+<span class="cmt"># Maximum total multipart request size</span>
+<span class="str">spring.servlet.multipart.max-request-size=2048MB</span>
+
+<span class="cmt"># Temp directory for spooled files. Use a fast local SSD path.</span>
+<span class="cmt"># Defaults to java.io.tmpdir if not set.</span>
+<span class="str">spring.servlet.multipart.location=/tmp/csv-uploads</span>
+
+<span class="cmt"># Must be true (it is by default) to enable the multipart resolver</span>
+<span class="str">spring.servlet.multipart.enabled=true</span></pre>
+        </div>
+
+        <div class="callout problem">
+          <strong>⚠️ What happens if you forget to set the threshold</strong>
+          If <code>file-size-threshold</code> is set to a high value (e.g. <code>50MB</code>),
+          every file under 50 MB is buffered entirely in a <code>byte[]</code> on the heap.
+          A typical CSV batch job that receives dozens of concurrent 30 MB uploads would
+          allocate 30 MB × concurrent uploads in heap <em>before any processing starts</em>.
+          With 20 concurrent requests that is <strong>600 MB</strong> just in upload buffers —
+          enough to exhaust a 512 MB heap immediately.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>UploadController.java — controller that receives the stream</div>
+<pre><span class="an">@PostMapping</span>(<span class="str">"/upload"</span>)
+<span class="kw">public</span> <span class="cls">ResponseEntity</span>&lt;<span class="cls">String</span>&gt; uploadCsv(
+        <span class="an">@RequestParam</span>(<span class="str">"file"</span>) <span class="cls">MultipartFile</span> file) {
+
+    <span class="cmt">// ✅ file.getInputStream() returns a FileInputStream backed by a</span>
+    <span class="cmt">//    temp file on disk — NOT a ByteArrayInputStream from heap.</span>
+    <span class="cmt">//    This is guaranteed ONLY when file-size-threshold=0B.</span>
+    <span class="kw">try</span> (<span class="cls">InputStream</span> is = file.getInputStream()) {
+        csvProcessingService.process(is);
+    } <span class="kw">catch</span> (<span class="cls">IOException</span> e) {
+        <span class="kw">throw new</span> <span class="cls">RuntimeException</span>(<span class="str">"Stream open failed"</span>, e);
+    }
+    <span class="kw">return</span> <span class="cls">ResponseEntity</span>.ok(<span class="str">"Processing started"</span>);
+}</pre>
+        </div>
+
+        <div class="callout info">
+          <strong>ℹ️ Verifying the temp file at runtime</strong>
+          Add this snippet to confirm that Spring really backed the upload with a disk file
+          and not an in-memory buffer — especially useful during integration testing.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>Verify disk-backed upload (debug / integration test)</div>
+<pre><span class="an">@PostMapping</span>(<span class="str">"/upload"</span>)
+<span class="kw">public</span> <span class="cls">ResponseEntity</span>&lt;<span class="cls">String</span>&gt; uploadCsv(<span class="an">@RequestParam</span> <span class="cls">MultipartFile</span> file)
+        <span class="kw">throws</span> <span class="cls">IOException</span> {
+
+    <span class="cmt">// StandardMultipartFile wraps a DiskFileItem when threshold == 0</span>
+    <span class="kw">if</span> (file <span class="kw">instanceof</span> <span class="cls">StandardMultipartFile</span> smf) {
+        <span class="cls">CommonsMultipartFile</span> cmf = (<span class="cls">CommonsMultipartFile</span>) smf;  <span class="cmt">// if commons-upload</span>
+        <span class="cls">DiskFileItem</span> dfi = (<span class="cls">DiskFileItem</span>) cmf.getFileItem();
+        log.debug(<span class="str">"Spooled to disk: {}"</span>, dfi.isInMemory() ? <span class="str">"NO ❌"</span> : <span class="str">"YES ✅"</span>);
+        log.debug(<span class="str">"Temp file path: {}"</span>, dfi.getStoreLocation());
+    }
+
+    <span class="cmt">// Simpler check — works for Servlet Part API (default in Spring Boot 3)</span>
+    log.debug(<span class="str">"Upload size: {} MB"</span>, file.getSize() / <span class="num">1_048_576</span>);
+    log.debug(<span class="str">"InputStream class: {}"</span>, file.getInputStream().getClass().getSimpleName());
+    <span class="cmt">// Prints: FileInputStream  (disk-backed) ✅</span>
+    <span class="cmt">// NOT:   ByteArrayInputStream (in-memory) ❌</span>
+
+    csvProcessingService.process(file.getInputStream());
+    <span class="kw">return</span> <span class="cls">ResponseEntity</span>.ok(<span class="str">"OK"</span>);
+}</pre>
+        </div>
+
+        <div class="compare">
+          <div class="compare-box bad">
+            <h4>❌ Loads everything</h4>
+            <p><code>byte[] all = file.getBytes();</code><br/>
+            String csv = new String(all);<br/>
+            <em>→ 800 MB on heap</em></p>
+          </div>
+          <div class="compare-box good">
+            <h4>✅ Streams line-by-line</h4>
+            <p><code>new BufferedReader(<br/>
+            &nbsp;&nbsp;new InputStreamReader(<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;file.getInputStream()), 131072)</code><br/>
+            <em>→ ~128 KB on heap</em></p>
+          </div>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>CsvProcessingService.java — streaming parse</div>
+<pre><span class="cmt">// Streaming parse — 128 KB buffer, one line in heap at a time</span>
+<span class="kw">try</span> (<span class="cls">BufferedReader</span> reader = <span class="kw">new</span> <span class="cls">BufferedReader</span>(
+         <span class="kw">new</span> <span class="cls">InputStreamReader</span>(inputStream, <span class="cls">StandardCharsets</span>.UTF_8),
+         <span class="num">128</span> * <span class="num">1024</span>);                 <span class="cmt">// ← 128 KB I/O buffer</span>
+     <span class="cls">CSVReader</span> csvReader = <span class="kw">new</span> <span class="cls">CSVReaderBuilder</span>(reader)
+         .withCSVParser(<span class="kw">new</span> <span class="cls">RFC4180ParserBuilder</span>().build())
+         .withSkipLines(<span class="num">1</span>)            <span class="cmt">// skip header row</span>
+         .build()) {
+
+    <span class="cls">String</span>[] row;
+    <span class="kw">while</span> ((row = csvReader.readNext()) != <span class="kw">null</span>) {
+        <span class="cmt">// Only THIS row is in memory — previous rows are GC-eligible</span>
+        batch.add(mapRow(row));
+
+        <span class="kw">if</span> (batch.size() >= batchSize) {
+            batchUpsertService.upsertBatch(batch, job, ++batchNo);
+            batch.clear();            <span class="cmt">// release references; reuse list</span>
+        }
+    }
+    <span class="kw">if</span> (!batch.isEmpty())
+        batchUpsertService.upsertBatch(batch, job, ++batchNo);
+
+} <span class="cmt">// InputStream closed here → temp file deleted by servlet container</span></pre>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric-pill"><span class="val">0B</span><span class="lbl">file-size-threshold</span></div>
+          <div class="metric-pill"><span class="val">128 KB</span><span class="lbl">Reader buffer</span></div>
+          <div class="metric-pill"><span class="val">~1 line</span><span class="lbl">Heap at a time</span></div>
+          <div class="metric-pill"><span class="val">0 MB</span><span class="lbl">File in heap</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══ TECHNIQUE 2 ══ -->
+    <section class="technique-card t2" id="t2">
+      <div class="card-header">
+        <div class="card-num">2</div>
+        <div>
+          <h2>Projection-Based Upsert Lookup</h2>
+          <span class="subtitle">CustomerIdProjection · only (externalId, id) tuples loaded</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="callout problem">
+          <strong>❌ Problem</strong>
+          To decide whether to INSERT or UPDATE, we need to know if each
+          <code>externalId</code> already exists in the database.  The naive approach
+          loads <strong>full Customer entities</strong> (all 8 fields, Hibernate state,
+          dirty-check snapshots) just to read one field — wasting ~300 B per row.
+        </div>
+
+        <p>
+          A <strong>Spring Data projection</strong> is a plain Java interface whose getter
+          names match JPQL aliases.  Spring Data materialises it as a tiny JDK dynamic proxy
+          (~200 bytes) rather than a full entity (~500 bytes including Hibernate's internal
+          snapshot array).  For a batch of 500 rows, that's a saving of ~150 KB per batch —
+          and across 20 000 batches (10 M rows) it means gigabytes of avoided allocation.
+        </p>
+
+        <div class="callout solution">
+          <strong>✅ Solution</strong>
+          Define a <code>CustomerIdProjection</code> interface with two getters.
+          Write a JPQL query that selects only those two columns aliased to match.
+          Spring Data does the rest.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>CustomerIdProjection.java</div>
+<pre><span class="cmt">/** Two-field projection — ~200 B proxy vs ~500 B full entity */</span>
+<span class="kw">public interface</span> <span class="cls">CustomerIdProjection</span> {
+    <span class="cls">String</span> getExternalId();
+    <span class="cls">Long</span>   getId();
+}</pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>CustomerRepository.java</div>
+<pre><span class="cmt">// JPQL aliases must match the interface getter names (minus "get", lower-cased)</span>
+<span class="an">@Query</span>(<span class="str">"SELECT c.externalId AS externalId, c.id AS id "</span> +
+       <span class="str">"FROM Customer c WHERE c.externalId IN :externalIds"</span>)
+<span class="cls">List</span>&lt;<span class="cls">CustomerIdProjection</span>&gt; findIdsByExternalIdIn(
+        <span class="cls">Collection</span>&lt;<span class="cls">String</span>&gt; externalIds);</pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>BatchUpsertService.java — using the projection</div>
+<pre><span class="cmt">// ONE SELECT per batch — not N selects for N rows</span>
+<span class="cls">Map</span>&lt;<span class="cls">String</span>, <span class="cls">Long</span>&gt; existingIdMap = customerRepository
+        .findIdsByExternalIdIn(externalIds)
+        .stream()
+        .collect(<span class="cls">Collectors</span>.toMap(
+                <span class="cls">CustomerIdProjection</span>::getExternalId,
+                <span class="cls">CustomerIdProjection</span>::getId));
+
+<span class="cmt">// Stamp DB id → Hibernate issues UPDATE; no id → INSERT</span>
+<span class="kw">for</span> (<span class="cls">Customer</span> c : batch) {
+    <span class="cls">Long</span> dbId = existingIdMap.get(c.getExternalId());
+    <span class="kw">if</span> (dbId != <span class="kw">null</span>) c.setId(dbId);  <span class="cmt">// UPDATE</span>
+    <span class="cmt">// else: id = null → INSERT</span>
+}</pre>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric-pill"><span class="val">~200 B</span><span class="lbl">Projection proxy</span></div>
+          <div class="metric-pill"><span class="val">~500 B</span><span class="lbl">Full entity</span></div>
+          <div class="metric-pill"><span class="val">1</span><span class="lbl">SELECT per batch</span></div>
+          <div class="metric-pill"><span class="val">~150 KB</span><span class="lbl">Saved per batch</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══ TECHNIQUE 3 ══ -->
+    <section class="technique-card t3" id="t3">
+      <div class="card-header">
+        <div class="card-num">3</div>
+        <div>
+          <h2>EntityManager flush() + clear()</h2>
+          <span class="subtitle">Release first-level cache · entities become GC-eligible immediately</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="callout problem">
+          <strong>❌ Problem — Hibernate's silent memory leak</strong>
+          Hibernate's <strong>first-level cache</strong> (the persistence context / session)
+          keeps a reference to every entity it has ever touched in the current session.
+          Without explicit clearing, calling <code>saveAll()</code> 20 000 times means
+          10 million Customer objects accumulate in memory — guaranteed OOM.
+        </div>
+
+        <p>
+          After <code>saveAll()</code>, two calls eliminate the leak:
+        </p>
+
+        <ul class="steps">
+          <li>
+            <span class="step-num">1</span>
+            <span><code>entityManager.flush()</code> — forces Hibernate to send any remaining
+            dirty SQL to JDBC.  This is a safety net; usually <code>saveAll()</code> already
+            flushed, but explicit flushing ensures nothing is left buffered.</span>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <span><code>entityManager.clear()</code> — <strong>detaches all entities</strong>
+            from the session.  Hibernate drops every object reference it holds.
+            The 500 Customer objects and 500 projection proxies from the current batch
+            become immediately eligible for garbage collection.</span>
+          </li>
+        </ul>
+
+        <div class="callout info">
+          <strong>⚠️ Spring Self-Invocation Pitfall</strong>
+          <code>@Transactional</code> works via AOP proxies.  If you call
+          <code>this.upsertBatch()</code> from within the same Spring bean,
+          the proxy is <strong>bypassed</strong> — no transaction is created and
+          <code>entityManager.flush()</code> throws <em>"No EntityManager with actual
+          transaction available"</em>.
+          The fix: put the batch logic in a <strong>separate Spring bean</strong>
+          (<code>BatchUpsertService</code>) so every call goes through the proxy.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>BatchUpsertService.java</div>
+<pre><span class="an">@Service</span>
+<span class="kw">public class</span> <span class="cls">BatchUpsertService</span> {
+
+    <span class="an">@PersistenceContext</span>             <span class="cmt">// transaction-scoped EntityManager</span>
+    <span class="kw">private</span> <span class="cls">EntityManager</span> entityManager;
+
+    <span class="an">@Transactional</span>(<span class="cls">propagation</span> = <span class="cls">Propagation</span>.REQUIRES_NEW)
+    <span class="kw">public long</span>[] upsertBatch(<span class="cls">List</span>&lt;<span class="cls">Customer</span>&gt; batch, ...) {
+
+        customerRepository.saveAll(batch);  <span class="cmt">// JDBC batch INSERT/UPDATE</span>
+
+        <span class="cmt">// ── Technique 3 ─────────────────────────────────────────</span>
+        entityManager.flush();   <span class="cmt">// flush remaining dirty state to JDBC</span>
+        entityManager.clear();   <span class="cmt">// detach ALL entities → eligible for GC</span>
+        <span class="cmt">// ────────────────────────────────────────────────────────</span>
+
+        <span class="kw">return new long</span>[] { inserts, updates };
+    }
+}</pre>
+        </div>
+
+        <div class="compare">
+          <div class="compare-box bad">
+            <h4>❌ Without clear()</h4>
+            <p>After 20 000 batches of 500 rows:<br/>
+            <strong>10 M Customer objects</strong> still referenced by Hibernate session
+            → heap grows to GB → OOM</p>
+          </div>
+          <div class="compare-box good">
+            <h4>✅ With flush() + clear()</h4>
+            <p>After each batch: all 500 objects detached immediately<br/>
+            → heap stays flat at <strong>~200 MB</strong> for any file size</p>
+          </div>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric-pill"><span class="val">0</span><span class="lbl">Entities retained</span></div>
+          <div class="metric-pill"><span class="val">Flat</span><span class="lbl">Heap growth</span></div>
+          <div class="metric-pill"><span class="val">2</span><span class="lbl">Calls needed</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══ TECHNIQUE 4 ══ -->
+    <section class="technique-card t4" id="t4">
+      <div class="card-header">
+        <div class="card-num">4</div>
+        <div>
+          <h2>Batch Size Capped at 500</h2>
+          <span class="subtitle">Lower per-TX peak heap · tuned Hibernate JDBC batch_size</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="callout problem">
+          <strong>❌ Problem</strong>
+          A large batch size (e.g. 5 000) means 5 000 entity objects in memory
+          simultaneously before <code>saveAll()</code> can release them.
+          At ~300 bytes each that's 1.5 MB of entity objects <em>per batch</em> —
+          plus Hibernate's snapshot copies, JDBC parameter arrays, and collection overhead.
+        </div>
+
+        <p>
+          Batch size controls two separate things that must be kept in sync:
+        </p>
+
+        <ul class="steps">
+          <li>
+            <span class="step-num">1</span>
+            <span><strong>Application batch</strong> — how many rows are accumulated in
+            the <code>List&lt;Customer&gt; batch</code> before calling <code>upsertBatch()</code>.
+            Set via <code>csv.processing.batch-size=500</code>.</span>
+          </li>
+          <li>
+            <span class="step-num">2</span>
+            <span><strong>JDBC batch</strong> — how many SQL statements Hibernate bundles
+            into one network round-trip.  Set via
+            <code>hibernate.jdbc.batch_size=500</code>.  Must equal or be a divisor of
+            the application batch so every call maps to exactly one JDBC batch.</span>
+          </li>
+        </ul>
+
+        <div class="callout solution">
+          <strong>✅ Tuning result</strong>
+          500 rows × ~300 B = <strong>150 KB peak heap per transaction</strong>.
+          Each batch completes in one JDBC round-trip.
+          Throughput is unchanged vs 1 000 batch size because SQLite's bottleneck is
+          disk I/O, not round-trips.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>application.properties</div>
+<pre><span class="cmt"># Application batch size (rows accumulated before one upsertBatch() call)</span>
+<span class="str">csv.processing.batch-size=500</span>
+
+<span class="cmt"># Hibernate JDBC batch — must match application batch for efficiency</span>
+<span class="str">spring.jpa.properties.hibernate.jdbc.batch_size=500</span>
+<span class="str">spring.jpa.properties.hibernate.order_inserts=true</span>
+<span class="str">spring.jpa.properties.hibernate.order_updates=true</span>
+<span class="str">spring.jpa.properties.hibernate.batch_versioned_data=true</span>
+
+<span class="cmt"># Disable stats — removes per-statement overhead objects</span>
+<span class="str">spring.jpa.properties.hibernate.generate_statistics=false</span></pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>CsvProcessingService.java — batch loop</div>
+<pre><span class="cls">List</span>&lt;<span class="cls">Customer</span>&gt; batch = <span class="kw">new</span> <span class="cls">ArrayList</span>&lt;&gt;(batchSize);  <span class="cmt">// pre-sized</span>
+
+<span class="kw">while</span> ((row = csvReader.readNext()) != <span class="kw">null</span>) {
+    batch.add(mapRow(row));
+
+    <span class="kw">if</span> (batch.size() >= batchSize) {          <span class="cmt">// hit 500 → flush</span>
+        batchUpsertService.upsertBatch(batch, job, ++batchNo);
+        batch.clear();                         <span class="cmt">// reuse the list</span>
+    }
+}
+<span class="kw">if</span> (!batch.isEmpty()) batchUpsertService.upsertBatch(batch, job, ++batchNo);</pre>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric-pill"><span class="val">500</span><span class="lbl">Rows / batch</span></div>
+          <div class="metric-pill"><span class="val">150 KB</span><span class="lbl">Peak per TX</span></div>
+          <div class="metric-pill"><span class="val">1</span><span class="lbl">JDBC round-trip</span></div>
+          <div class="metric-pill"><span class="val">20 000</span><span class="lbl">Batches for 10 M rows</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══ TECHNIQUE 5 ══ -->
+    <section class="technique-card t5" id="t5">
+      <div class="card-header">
+        <div class="card-num">5</div>
+        <div>
+          <h2>Heap Telemetry Every 100 Batches</h2>
+          <span class="subtitle">MemoryMXBean · no profiler needed · verify flat heap live</span>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <div class="callout problem">
+          <strong>❌ Problem</strong>
+          Without visibility into heap usage, you cannot tell whether your optimisations
+          are working.  Attaching a profiler to a production or staging JVM is invasive
+          and sometimes not possible.
+        </div>
+
+        <p>
+          Java's built-in <code>MemoryMXBean</code> (available via
+          <code>ManagementFactory.getMemoryMXBean()</code>) gives real-time heap figures —
+          <strong>used</strong>, <strong>committed</strong>, and <strong>max</strong> —
+          with zero external dependencies.  Logging these every 100 batches (50 000 rows)
+          adds one line to the application log and lets you verify the heap is flat
+          without attaching any external tool.
+        </p>
+
+        <div class="callout solution">
+          <strong>✅ Solution</strong>
+          Call <code>logHeap()</code> from the main batch loop every
+          <code>HEAP_LOG_EVERY_N_BATCHES = 100</code> batches.  If heap is rising
+          monotonically, the <code>flush()+clear()</code> is not working — this is
+          your early-warning signal.
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>CsvProcessingService.java</div>
+<pre><span class="kw">private final</span> <span class="cls">MemoryMXBean</span> memBean = <span class="cls">ManagementFactory</span>.getMemoryMXBean();
+<span class="kw">private static final int</span> HEAP_LOG_EVERY_N_BATCHES = <span class="num">100</span>;
+
+<span class="kw">private void</span> logHeap(<span class="cls">ProcessingJob</span> job, <span class="cls">String</span> phase) {
+    <span class="kw">long</span> used      = memBean.getHeapMemoryUsage().getUsed()      / (<span class="num">1024</span> * <span class="num">1024</span>);
+    <span class="kw">long</span> committed = memBean.getHeapMemoryUsage().getCommitted()  / (<span class="num">1024</span> * <span class="num">1024</span>);
+    <span class="kw">long</span> max       = memBean.getHeapMemoryUsage().getMax()        / (<span class="num">1024</span> * <span class="num">1024</span>);
+    <span class="kw">int</span>  pct       = (<span class="kw">int</span>)((used * <span class="num">100</span>) / max);
+
+    log.info(<span class="str">"[Job {}] [{}] Heap: used={} MB | committed={} MB | max={} MB  ({}% used)"</span>,
+             job.getJobId(), phase, used, committed, max, pct);
+}
+
+<span class="cmt">// Called from flushBatch() every 100 batches</span>
+<span class="kw">if</span> (batchNo % HEAP_LOG_EVERY_N_BATCHES == <span class="num">0</span>) {
+    logHeap(job, <span class="str">"batch-"</span> + batchNo);
+}</pre>
+        </div>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>Sample log output (10 M row file)</div>
+<pre><span class="cmt"># Flat heap across all 20 000 batches — techniques are working</span>
+[Job a1b2] [startup]   Heap: used=<span class="num">112</span> MB | committed=<span class="num">256</span> MB | max=<span class="num">512</span> MB  (<span class="num">21</span>% used)
+[Job a1b2] [batch-<span class="num">100</span>]  Heap: used=<span class="num">187</span> MB | committed=<span class="num">256</span> MB | max=<span class="num">512</span> MB  (<span class="num">36</span>% used)
+[Job a1b2] [batch-<span class="num">200</span>]  Heap: used=<span class="num">193</span> MB | committed=<span class="num">256</span> MB | max=<span class="num">512</span> MB  (<span class="num">37</span>% used)
+[Job a1b2] [batch-<span class="num">500</span>]  Heap: used=<span class="num">195</span> MB | committed=<span class="num">256</span> MB | max=<span class="num">512</span> MB  (<span class="num">38</span>% used)
+[Job a1b2] [completion] Heap: used=<span class="num">189</span> MB | committed=<span class="num">256</span> MB | max=<span class="num">512</span> MB  (<span class="num">36</span>% used)</pre>
+        </div>
+
+        <div class="metrics-row">
+          <div class="metric-pill"><span class="val">0</span><span class="lbl">Extra dependencies</span></div>
+          <div class="metric-pill"><span class="val">1 line</span><span class="lbl">Per 100 batches</span></div>
+          <div class="metric-pill"><span class="val">&lt;1 µs</span><span class="lbl">Call overhead</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══ BONUS: JVM FLAGS ══ -->
+    <section class="technique-card" id="jvm" style="border-color:#e2e6f0;">
+      <div class="card-header" style="border-left:4px solid #868e96;">
+        <div class="card-num" style="background:#f1f3f5;color:#495057;">⚙</div>
+        <div>
+          <h2>Bonus: G1GC Tuning for 512 MB</h2>
+          <span class="subtitle">start.bat / startup flags · early GC trigger · GC log</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <p>
+          The JVM flags below lock the heap to exactly 512 MB and tune G1GC to
+          collect <em>early and often</em> rather than letting the heap fill up before
+          a major GC pause.
+        </p>
+
+        <div class="code-wrap">
+          <div class="code-title"><span class="dot"></span>start.bat</div>
+<pre>java <span class="kw">\</span>
+  <span class="str">-Xms512m -Xmx512m</span>                        <span class="cmt"># hard cap — no expansion allowed</span>
+  <span class="str">-XX:+UseG1GC</span>                              <span class="cmt"># G1 GC (default in Java 9+)</span>
+  <span class="str">-XX:MaxGCPauseMillis=100</span>                  <span class="cmt"># target max pause 100 ms</span>
+  <span class="str">-XX:InitiatingHeapOccupancyPercent=30</span>     <span class="cmt"># trigger concurrent GC at 30% full</span>
+  <span class="str">-XX:G1HeapRegionSize=4m</span>                   <span class="cmt"># 4 MB regions suit 512 MB heap</span>
+  <span class="str">-XX:+ExplicitGCInvokesConcurrent</span>          <span class="cmt"># System.gc() stays concurrent</span>
+  <span class="str">-Xlog:gc*:file=logs/gc.log:time,uptime,level</span>  <span class="cmt"># GC log for analysis</span>
+  -jar target/csv-upload-demo-1.0-SNAPSHOT.jar</pre>
+        </div>
+
+        <table class="budget-table">
+          <thead><tr><th>Flag</th><th>Why it matters at 512 MB</th></tr></thead>
+          <tbody>
+            <tr><td><code>-Xms512m -Xmx512m</code></td><td>Fixed heap = no slow heap expansion pauses mid-processing</td></tr>
+            <tr><td><code>-XX:InitiatingHeapOccupancyPercent=30</code></td><td>Default is 45% — lowering to 30% starts concurrent marking earlier, preventing promotion failure with flat but active heap</td></tr>
+            <tr><td><code>-XX:G1HeapRegionSize=4m</code></td><td>512 MB / 4 MB = 128 regions — G1's sweet spot for this heap size</td></tr>
+            <tr><td><code>-Xlog:gc*:file=logs/gc.log</code></td><td>GC log lets you verify pause times and collection frequency post-run</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  Spring Boot Large CSV Processing Guide &nbsp;·&nbsp;
+  Spring Boot 3.3 &nbsp;·&nbsp; Java 21 &nbsp;·&nbsp; SQLite WAL &nbsp;·&nbsp;
+  Hibernate 6 &nbsp;·&nbsp; OpenCSV 5.9
+</footer>
+
+</body>
+</html>
+

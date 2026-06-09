@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>CSV Customer Upload</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #555;
+            margin-bottom: 40px;
+            font-size: 0.95rem;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 36px 40px;
+            width: 100%;
+            max-width: 680px;
+        }
+
+        /* ---- Drag-and-drop zone ---- */
+        .drop-zone {
+            border: 2.5px dashed #a0aec0;
+            border-radius: 10px;
+            padding: 50px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            background: #fafafa;
+            position: relative;
+        }
+
+        .drop-zone.dragover {
+            border-color: #4f46e5;
+            background: #eef2ff;
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .drop-zone .icon { font-size: 3rem; margin-bottom: 12px; }
+
+        .drop-zone .label {
+            font-size: 1.05rem;
+            color: #444;
+            margin-bottom: 6px;
+        }
+
+        .drop-zone .hint {
+            font-size: 0.82rem;
+            color: #888;
+        }
+
+        .file-name {
+            margin-top: 14px;
+            font-size: 0.9rem;
+            color: #4f46e5;
+            font-weight: 600;
+            min-height: 20px;
+        }
+
+        /* ---- Techniques info box ---- */
+        .techniques {
+            margin-top: 28px;
+            background: #f8f9ff;
+            border-left: 4px solid #4f46e5;
+            border-radius: 6px;
+            padding: 16px 20px;
+        }
+
+        .techniques h3 {
+            font-size: 0.88rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #4f46e5;
+            margin-bottom: 10px;
+        }
+
+        .techniques ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .techniques li {
+            font-size: 0.88rem;
+            color: #333;
+            display: flex;
+            gap: 8px;
+        }
+
+        .techniques li::before { content: "⚡"; }
+
+        /* ---- CSV format hint ---- */
+        .csv-format {
+            margin-top: 20px;
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 14px 18px;
+            color: #a9b1d6;
+            font-family: 'Consolas', monospace;
+            font-size: 0.82rem;
+            overflow-x: auto;
+        }
+
+        .csv-format span.header { color: #7aa2f7; }
+
+        /* ---- Submit button ---- */
+        .btn-upload {
+            display: block;
+            width: 100%;
+            margin-top: 24px;
+            padding: 14px;
+            background: #4f46e5;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .btn-upload:hover { background: #4338ca; }
+        .btn-upload:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+        /* ---- Error alert ---- */
+        .alert-error {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        /* ---- Upload progress (client-side) ---- */
+        #upload-progress-wrap { display: none; margin-top: 16px; }
+
+        .prog-bar-bg {
+            background: #e5e7eb;
+            border-radius: 999px;
+            height: 10px;
+            overflow: hidden;
+        }
+
+        .prog-bar-fill {
+            height: 100%;
+            background: #4f46e5;
+            border-radius: 999px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .prog-label {
+            font-size: 0.82rem;
+            color: #555;
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .footer-note {
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: #888;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<h1>📂 CSV Customer Uploader</h1>
+<p class="subtitle">Spring Boot · OpenCSV streaming · Hibernate batch inserts · Async processing · SQLite</p>
+
+<div class="card">
+
+    <!-- Error flash message -->
+    <div th:if="${error}" class="alert-error" th:text="${error}"></div>
+
+    <form id="upload-form" method="POST" action="/upload" enctype="multipart/form-data">
+        <!-- ---- Drag-and-drop zone ---- -->
+        <div class="drop-zone" id="drop-zone">
+            <input type="file" name="file" id="file-input" accept=".csv"/>
+            <div class="icon">📄</div>
+            <div class="label">Drag &amp; drop your CSV here, or <u>click to browse</u></div>
+            <div class="hint">Max 500 MB · UTF-8 CSV</div>
+        </div>
+        <div class="file-name" id="file-name-label"></div>
+
+        <!-- Client-side upload progress -->
+        <div id="upload-progress-wrap">
+            <div class="prog-bar-bg">
+                <div class="prog-bar-fill" id="upload-prog-fill"></div>
+            </div>
+            <div class="prog-label" id="upload-prog-label">Uploading…</div>
+        </div>
+
+        <!-- ---- Mode selector ---- -->
+        <div style="margin-top:22px;">
+          <p style="font-size:.85rem;font-weight:700;color:#333;margin-bottom:10px;">
+            ⚙️ Processing Engine
+          </p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+
+            <label style="flex:1;min-width:200px;cursor:pointer;">
+              <input type="radio" name="mode" value="JPA" checked style="display:none;" id="modeJpa"/>
+              <div class="mode-card" id="modeJpaCard" onclick="selectMode('JPA')"
+                   style="border:2px solid #4f46e5;border-radius:10px;padding:14px 18px;background:#eef2ff;">
+                <div style="font-weight:700;font-size:.95rem;color:#3730a3;">🏗 JPA / Hibernate</div>
+                <div style="font-size:.78rem;color:#555;margin-top:4px;">
+                  Entity objects · projection upsert lookup · flush+clear · SELECT+saveAll
+                </div>
+              </div>
+            </label>
+
+            <label style="flex:1;min-width:200px;cursor:pointer;">
+              <input type="radio" name="mode" value="JDBC" style="display:none;" id="modeJdbc"/>
+              <div class="mode-card" id="modeJdbcCard" onclick="selectMode('JDBC')"
+                   style="border:2px solid #e5e7eb;border-radius:10px;padding:14px 18px;background:#fff;">
+                <div style="font-weight:700;font-size:.95rem;color:#1e2235;">⚡ Pure JDBC</div>
+                <div style="font-size:.78rem;color:#555;margin-top:4px;">
+                  Raw param arrays · SQLite ON CONFLICT UPSERT · no SELECT · no cache
+                </div>
+              </div>
+            </label>
+
+          </div>
+        </div>
+            <h3>🛠 Processing Techniques Demonstrated</h3>
+            <ul>
+                <li><strong>Stream parsing</strong> — OpenCSV reads line-by-line; file never fully loaded into heap</li>
+                <li><strong>Hibernate batch inserts</strong> — 500 rows per JDBC batch (configurable)</li>
+                <li><strong>Async @Async executor</strong> — dedicated thread pool, HTTP returns immediately</li>
+                <li><strong>Per-batch transactions</strong> — failure rolls back only the current chunk</li>
+                <li><strong>Live progress polling</strong> — atomic counters, UI polls every 2 seconds</li>
+                <li><strong>Error collection</strong> — bad rows logged with row number; processing continues</li>
+            </ul>
+        </div>
+
+        <!-- Expected CSV format -->
+        <div class="csv-format">
+            <span class="header">externalId,firstName,lastName,email,phone,city,country,registrationDate</span><br/>
+            1001,John,Doe,john@example.com,555-1234,New York,US,2024-01-15<br/>
+            1002,Jane,Smith,jane@example.com,555-5678,London,GB,2023-11-20
+        </div>
+
+        <button type="submit" class="btn-upload" id="submit-btn" disabled>
+            ⬆ Upload &amp; Process
+        </button>
+    </form>
+</div>
+
+<div class="footer-note">
+    Jobs are tracked in-memory. Past uploads session:
+    <strong th:text="${totalJobs}">0</strong> job(s) submitted.
+    &nbsp;|&nbsp;
+    <a href="/benchmark" style="color:#0891b2;font-weight:600;">⚡ JPA vs JDBC Benchmark</a>
+    &nbsp;|&nbsp;
+    &nbsp;|&nbsp;
+    <a href="/api/jobs/db-stats" target="_blank" style="color:#4f46e5;">DB stats</a>
+</div>
+
+<script>
+    const dropZone   = document.getElementById('drop-zone');
+    const fileInput  = document.getElementById('file-input');
+    const fileLabel  = document.getElementById('file-name-label');
+    const submitBtn  = document.getElementById('submit-btn');
+    const form       = document.getElementById('upload-form');
+    const progWrap   = document.getElementById('upload-progress-wrap');
+    const progFill   = document.getElementById('upload-prog-fill');
+    const progLabel  = document.getElementById('upload-prog-label');
+
+    // ---- Drag-and-drop visual feedback ----
+    ['dragenter','dragover'].forEach(e =>
+        dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(e =>
+        dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); }));
+
+    // ---- File selected ----
+    fileInput.addEventListener('change', () => {
+        const f = fileInput.files[0];
+        if (f) {
+            fileLabel.textContent = `Selected: ${f.name} (${formatBytes(f.size)})`;
+            submitBtn.disabled = false;
+        }
+    });
+
+    // ---- AJAX upload with XHR to show upload-progress bar ----
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!fileInput.files[0]) return;
+
+        submitBtn.disabled  = true;
+        submitBtn.textContent = '⬆ Uploading…';
+        progWrap.style.display = 'block';
+
+        const fd = new FormData(form);
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', ev => {
+            if (ev.lengthComputable) {
+                const pct = Math.round((ev.loaded / ev.total) * 100);
+                progFill.style.width  = pct + '%';
+                progLabel.textContent = `Uploading: ${pct}% (${formatBytes(ev.loaded)} / ${formatBytes(ev.total)})`;
+            }
+        });
+
+        xhr.addEventListener('load', () => {
+            // Server redirects to /progress/<jobId> after accepting file
+            window.location.href = xhr.responseURL;
+        });
+
+        xhr.addEventListener('error', () => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '⬆ Upload & Process';
+            progLabel.textContent = 'Upload failed — please try again.';
+        });
+
+        xhr.open('POST', '/upload');
+        xhr.send(fd);
+    });
+
+    function selectMode(mode) {
+        document.getElementById('modeJpa').checked  = (mode === 'JPA');
+        document.getElementById('modeJdbc').checked = (mode === 'JDBC');
+        const jpaCard  = document.getElementById('modeJpaCard');
+        const jdbcCard = document.getElementById('modeJdbcCard');
+        if (mode === 'JPA') {
+            jpaCard.style.borderColor  = '#4f46e5'; jpaCard.style.background  = '#eef2ff';
+            jdbcCard.style.borderColor = '#e5e7eb'; jdbcCard.style.background = '#fff';
+        } else {
+            jdbcCard.style.borderColor = '#0891b2'; jdbcCard.style.background = '#ecfeff';
+            jpaCard.style.borderColor  = '#e5e7eb'; jpaCard.style.background  = '#fff';
+        }
+    }
+        if (b < 1024)           return b + ' B';
+        if (b < 1024 * 1024)    return (b / 1024).toFixed(1) + ' KB';
+        return (b / 1024 / 1024).toFixed(1) + ' MB';
+    }
+</script>
+</body>
+</html>
+

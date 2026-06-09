@@ -1,0 +1,43 @@
+# ── Large data files ──────────────────────────────────────────────────────
+*.zip
+*.gz
+*.tar
+*.tar.gz
+*.7z
+
+# Large / generated CSV files (keep small test CSVs if needed)
+customers_1m.csv
+customers_10m.csv
+*_1m.csv
+*_10m.csv
+*_100m.csv
+
+# Any CSV over a reasonable threshold — add specific names here
+# or use a blanket rule (comment out if you need to commit small CSVs):
+# *.csv
+
+# ── Build output ──────────────────────────────────────────────────────────
+target/
+*.jar
+*.war
+*.class
+
+# ── IDE / OS files ────────────────────────────────────────────────────────
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ── SQLite database files ─────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+logs/
+*.log
+gc.log
+
+# ── Temp upload spools ────────────────────────────────────────────────────
+/tmp/
+
